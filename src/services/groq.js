@@ -2,12 +2,15 @@ const GROQ_BASE = "https://api.groq.com/openai/v1";
 
 /**
  * Transcribe audio blob using Groq Whisper large-v3
+ * @param {Blob} audioBlob
+ * @param {string} apiKey
+ * @param {string} languageCode - BCP-47 language code e.g. "hi", "en", "zh"
  */
-export async function transcribeAudio(audioBlob, apiKey) {
+export async function transcribeAudio(audioBlob, apiKey, languageCode = "hi") {
   const formData = new FormData();
   formData.append("file", audioBlob, "audio.webm");
   formData.append("model", "whisper-large-v3");
-  formData.append("language", "hi"); // Hindi primary, auto-detects Hinglish
+  formData.append("language", languageCode);
   formData.append("response_format", "text");
 
   const response = await fetch(`${GROQ_BASE}/audio/transcriptions`, {
@@ -28,12 +31,15 @@ export async function transcribeAudio(audioBlob, apiKey) {
 }
 
 /**
- * Extract clinical entities from transcript using Groq LLaMA
+ * Extract clinical entities from transcript using Groq Qwen3-32B
+ * @param {string} transcript
+ * @param {string} apiKey
+ * @param {string} languageLabel - Human-readable language name e.g. "Hindi", "French"
  */
-export async function extractClinicalEntities(transcript, apiKey) {
-  const systemPrompt = `You are a clinical NLP expert. Extract structured medical information from doctor-patient conversations in Hindi, English, or Hinglish.
+export async function extractClinicalEntities(transcript, apiKey, languageLabel = "Hindi") {
+  const systemPrompt = `You are a clinical NLP expert. Extract structured medical information from doctor-patient conversations spoken in ${languageLabel}.
 
-Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
+Return ONLY a valid JSON object with this exact structure (no markdown, no explanation, no <think> tags):
 {
   "chief_complaint": "string - main reason for visit",
   "symptoms": ["array of symptoms mentioned"],
@@ -54,7 +60,7 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
   "patient_gender": "if mentioned"
 }
 
-Remove any keys with empty arrays or null values. Translate Hindi terms to English. Be concise.`;
+Remove any keys with empty arrays or null values. Translate all terms to English. Be concise.`;
 
   const response = await fetch(`${GROQ_BASE}/chat/completions`, {
     method: "POST",
@@ -63,7 +69,7 @@ Remove any keys with empty arrays or null values. Translate Hindi terms to Engli
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
+      model: "qwen/qwen3-32b",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Extract clinical entities from this transcript:\n\n${transcript}` },
@@ -75,15 +81,16 @@ Remove any keys with empty arrays or null values. Translate Hindi terms to Engli
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(`LLaMA API error: ${err.error?.message || response.statusText}`);
+    throw new Error(`Qwen3 API error: ${err.error?.message || response.statusText}`);
   }
 
   const data = await response.json();
   const content = data.choices[0]?.message?.content || "{}";
 
   try {
-    // Strip any accidental markdown fences
-    const clean = content.replace(/```json\n?|```\n?/g, "").trim();
+    // Strip <think>...</think> blocks that Qwen3 may emit, then strip markdown fences
+    const noThink = content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    const clean = noThink.replace(/```json\n?|```\n?/g, "").trim();
     return JSON.parse(clean);
   } catch {
     console.warn("JSON parse failed, returning raw:", content);
