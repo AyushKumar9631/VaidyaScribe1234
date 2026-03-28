@@ -1,0 +1,24 @@
+{
+  "name": "VaidyaScribe — Ambient AI Clinical Scribe",
+  "short_name": "VaidyaScribe",
+  "description": "Mobile-first ambient AI scribe with FHIR R4 conversion",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080c10",
+  "theme_color": "#080c10",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
