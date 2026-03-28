@@ -41,7 +41,7 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false);
 
   // Patient info lifted from RecordingPanel
-  const [patientInfo, setPatientInfo] = useState({ patientId: "", patientName: "" });
+  const [patientInfo, setPatientInfo] = useState({ patientId: "", patientName: "", language: { label: "Hindi", code: "hi" } });
 
   // Trigger re-fetch in PatientSessionHistory after a new session is saved
   const [sessionSavedAt, setSessionSavedAt] = useState(null);
@@ -61,12 +61,12 @@ export default function App() {
 
     try {
       // Step 1: Transcribe
-      const text = await transcribeAudio(audioBlob, apiKey);
+      const text = await transcribeAudio(audioBlob, apiKey, patientInfo.language?.code || "hi");
       setTranscript(text);
-      setProcessingStep("Extracting clinical entities with LLaMA...");
+      setProcessingStep("Extracting clinical entities with Qwen3-32B...");
 
       // Step 2: Extract clinical entities
-      const entities = await extractClinicalEntities(text, apiKey);
+      const entities = await extractClinicalEntities(text, apiKey, patientInfo.language?.label || "Hindi");
       setClinicalData(entities);
       setProcessingStep("Generating FHIR R4 bundle...");
 
@@ -106,7 +106,7 @@ export default function App() {
     setFhirBundle(null);
     setError(null);
     setProcessingStep("");
-    setPatientInfo({ patientId: "", patientName: "" });
+    setPatientInfo({ patientId: "", patientName: "", language: { label: "Hindi", code: "hi" } });
     setSessionSavedAt(null);
   };
 

@@ -1,9 +1,20 @@
 import { useState, useRef, useEffect } from "react";
 
+const LANGUAGES = [
+  { label: "Hindi",    code: "hi" },
+  { label: "English",  code: "en" },
+  { label: "Bengali",  code: "bn" },
+  { label: "French",   code: "fr" },
+  { label: "Spanish",  code: "es" },
+  { label: "Arabic",   code: "ar" },
+  { label: "Mandarin", code: "zh" },
+];
+
 export default function RecordingPanel({ phase, processingStep, onStart, onStop, onReset, error, onPatientChange }) {
   const [seconds, setSeconds] = useState(0);
   const [patientId, setPatientId] = useState("");
   const [patientName, setPatientName] = useState("");
+  const [language, setLanguage] = useState(LANGUAGES[0]);
   const timerRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -11,10 +22,10 @@ export default function RecordingPanel({ phase, processingStep, onStart, onStop,
 
   const canRecord = patientId.trim() !== "" && patientName.trim() !== "";
 
-  // Notify parent whenever patient info changes
+  // Notify parent whenever patient info or language changes
   useEffect(() => {
-    if (onPatientChange) onPatientChange({ patientId, patientName });
-  }, [patientId, patientName]);
+    if (onPatientChange) onPatientChange({ patientId, patientName, language });
+  }, [patientId, patientName, language]);
 
   useEffect(() => {
     if (phase === "recording") {
@@ -75,6 +86,7 @@ export default function RecordingPanel({ phase, processingStep, onStart, onStop,
   const handleReset = () => {
     setPatientId("");
     setPatientName("");
+    setLanguage(LANGUAGES[0]);
     onReset();
   };
 
@@ -108,7 +120,18 @@ export default function RecordingPanel({ phase, processingStep, onStart, onStop,
         </div>
         <div className="info-field">
           <span className="info-label">Language</span>
-          <input className="info-input" value="Hindi + English" readOnly />
+          <select
+            className="info-input"
+            value={language.code}
+            onChange={(e) => setLanguage(LANGUAGES.find((l) => l.code === e.target.value))}
+            disabled={phase === "recording" || phase === "processing"}
+          >
+            {LANGUAGES.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
