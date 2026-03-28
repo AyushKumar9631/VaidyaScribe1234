@@ -4,6 +4,8 @@ import TranscriptPanel from "./components/TranscriptPanel";
 import FHIRPanel from "./components/FHIRPanel";
 import Header from "./components/Header";
 import AuthGate from "./components/AuthGate";
+import PatientHistory from "./components/PatientHistory";
+import PatientSessionHistory from "./components/PatientSessionHistory";
 import { transcribeAudio, extractClinicalEntities } from "./services/groq";
 import { buildFHIRBundle } from "./services/fhir";
 import { supabase } from "./services/supabase";
@@ -15,38 +17,39 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
-    // Get current session on mount
     supabase.auth.getSession().then(({ data }) => {
       setUser(data.session?.user ?? null);
       setAuthLoading(false);
     });
-
-    // Listen for login / logout changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
   // ── App state ──────────────────────────────────────────────────────────────
-  const [phase, setPhase] = useState("idle"); // idle | recording | processing | done
+  const [phase, setPhase] = useState("idle");
   const [transcript, setTranscript] = useState("");
-  const [partialTranscript, setPartialTranscript] = useState("");
   const [clinicalData, setClinicalData] = useState(null);
   const [fhirBundle, setFhirBundle] = useState(null);
   const [activeTab, setActiveTab] = useState("transcript");
   const [error, setError] = useState(null);
   const [processingStep, setProcessingStep] = useState("");
   const [apiKey] = useState(import.meta.env.VITE_GROQ_API_KEY);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // Patient info lifted from RecordingPanel
+  const [patientInfo, setPatientInfo] = useState({ patientId: "", patientName: "" });
+
+  // Trigger re-fetch in PatientSessionHistory after a new session is saved
+  const [sessionSavedAt, setSessionSavedAt] = useState(null);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleStartRecording = () => {
     setPhase("recording");
     setTranscript("");
-    setPartialTranscript("");
     setClinicalData(null);
     setFhirBundle(null);
     setError(null);
@@ -71,15 +74,22 @@ export default function App() {
       const bundle = buildFHIRBundle(entities);
       setFhirBundle(bundle);
 
-      // Step 4: Save session log to Supabase
+      // Step 4: Save to Supabase — now includes patient_id
       setProcessingStep("Saving session log...");
       const { error: dbError } = await supabase.from("session_logs").insert({
         user_id: user.id,
+        patient_id: patientInfo.patientId.trim(),
+        patient_name: patientInfo.patientName.trim(),
         transcript: text,
         clinical_data: entities,
         fhir_bundle: bundle,
       });
-      if (dbError) console.error("Failed to save log:", dbError.message);
+      if (dbError) {
+        console.error("Failed to save log:", dbError.message);
+      } else {
+        // Tell PatientSessionHistory to re-fetch
+        setSessionSavedAt(Date.now());
+      }
 
       setPhase("done");
       setActiveTab("transcript");
@@ -92,15 +102,12 @@ export default function App() {
   const handleReset = () => {
     setPhase("idle");
     setTranscript("");
-    setPartialTranscript("");
     setClinicalData(null);
     setFhirBundle(null);
     setError(null);
     setProcessingStep("");
-  };
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    setPatientInfo({ patientId: "", patientName: "" });
+    setSessionSavedAt(null);
   };
 
   // ── Render guards ──────────────────────────────────────────────────────────
@@ -128,27 +135,15 @@ export default function App() {
   // ── Main app (authenticated) ───────────────────────────────────────────────
   return (
     <div className="app">
-      <Header />
+      <Header
+        patientName={patientInfo.patientName}
+        onHistoryClick={() => setShowHistory(true)}
+        onSignOut={() => supabase.auth.signOut()}
+        userEmail={user.email}
+      />
 
-      {/* Sign-out button */}
-      <button
-        onClick={handleSignOut}
-        style={{
-          position: "absolute",
-          top: "1rem",
-          right: "1rem",
-          fontSize: "12px",
-          opacity: 0.6,
-          background: "transparent",
-          border: "1px solid currentColor",
-          borderRadius: "6px",
-          padding: "4px 10px",
-          cursor: "pointer",
-          color: "inherit",
-        }}
-      >
-        Sign out
-      </button>
+      {/* Full history slide-over */}
+      {showHistory && <PatientHistory onClose={() => setShowHistory(false)} />}
 
       <main className="main">
         <RecordingPanel
@@ -158,8 +153,10 @@ export default function App() {
           onStop={handleStopRecording}
           onReset={handleReset}
           error={error}
+          onPatientChange={setPatientInfo}
         />
 
+        {/* Current session results */}
         {(transcript || phase === "processing") && (
           <div className="results">
             <div className="tabs">
@@ -205,6 +202,15 @@ export default function App() {
               )}
             </div>
           </div>
+        )}
+
+        {/* Per-patient history — shown as soon as patient ID is typed */}
+        {patientInfo.patientId.trim().length > 0 && (
+          <PatientSessionHistory
+            patientId={patientInfo.patientId.trim()}
+            userId={user.id}
+            refreshTrigger={sessionSavedAt}
+          />
         )}
       </main>
     </div>
