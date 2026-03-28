@@ -180,6 +180,8 @@ export default function App() {
                 <TranscriptPanel
                   transcript={transcript}
                   loading={phase === "processing" && !transcript}
+                  apiKey={apiKey}
+                  languageCode={patientInfo.language?.code}
                 />
               )}
               {activeTab === "clinical" && (
