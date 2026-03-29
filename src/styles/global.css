@@ -2026,3 +2026,12 @@ body {
 .drawer-row-label { font-size: 12px; color: var(--text3); font-weight: 500; flex-shrink: 0; }
 .drawer-row-val   { font-size: 12px; color: var(--text); text-align: right; }
 .drawer-bio { font-size: 13px; color: var(--text2); line-height: 1.7; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+
+.analytics-session-row--clickable {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.analytics-session-row--clickable:hover {
+  background: var(--bg2);
+  border-radius: 8px;
+}

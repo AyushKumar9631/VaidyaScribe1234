@@ -683,13 +683,13 @@ function AnalyticsTab({ adminId }) {
   const [chartData, setChartData]   = useState([]);
   const [diagnoses, setDiagnoses]   = useState([]);
   const [recentSessions, setRecent] = useState([]);
+  const [selectedSession, setSelectedSession] = useState(null); // ← new
 
   useEffect(() => { fetchAnalytics(); }, []);
 
   const fetchAnalytics = async () => {
     setLoading(true);
 
-    // 1. Get hospital for this admin
     const { data: hospital } = await supabase
       .from("hospitals")
       .select("id")
@@ -698,13 +698,13 @@ function AnalyticsTab({ adminId }) {
 
     if (!hospital) { setLoading(false); return; }
 
-    // 2. Get all linked doctors
     const { data: links } = await supabase
       .from("doctor_hospital_links")
-      .select("doctor_id")
+      .select("doctor_id, doctor_email")       // ← also grab email for display
       .eq("hospital_id", hospital.id);
 
-    const doctorIds = (links || []).map(l => l.doctor_id);
+    const doctorIds    = (links || []).map(l => l.doctor_id);
+    const emailById    = Object.fromEntries((links || []).map(l => [l.doctor_id, l.doctor_email]));
     const linkedDoctors = doctorIds.length;
 
     if (linkedDoctors === 0) {
@@ -713,45 +713,42 @@ function AnalyticsTab({ adminId }) {
       return;
     }
 
-    // 3. Get all sessions for those doctors
+    // Fetch sessions — now includes soap_note, transcript, user_id
     const { data: sessions } = await supabase
       .from("session_logs")
-      .select("id, patient_id, patient_name, created_at, clinical_data")
+      .select("id, user_id, patient_id, patient_name, created_at, clinical_data, soap_note, transcript")
       .in("user_id", doctorIds)
       .order("created_at", { ascending: false });
 
     const allSessions = sessions || [];
 
-    // 4. Stats
-    const uniquePatients = new Set(allSessions.map(s => s.patient_id)).size;
-    const totalSessions  = allSessions.length;
+    // Attach doctor email to each session for display in the modal
+    const enrichedSessions = allSessions.map(s => ({
+      ...s,
+      doctor_email: emailById[s.user_id] || "Unknown doctor",
+    }));
+
+    const uniquePatients = new Set(enrichedSessions.map(s => s.patient_id)).size;
+    const totalSessions  = enrichedSessions.length;
     const avgPerDoctor   = linkedDoctors > 0 ? Math.round(totalSessions / linkedDoctors) : 0;
 
     setStats({ totalSessions, uniquePatients, linkedDoctors, avgPerDoctor });
 
-    // 5. Sessions over last 14 days
     const today = new Date();
     const days  = Array.from({ length: 14 }, (_, i) => {
       const d = new Date(today);
       d.setDate(today.getDate() - (13 - i));
-      return {
-        label: d.toLocaleDateString("en-IN", { day: "2-digit" }),
-        date:  d.toISOString().slice(0, 10),
-        count: 0,
-      };
+      return { label: d.toLocaleDateString("en-IN", { day: "2-digit" }), date: d.toISOString().slice(0, 10), count: 0 };
     });
-
-    allSessions.forEach(s => {
+    enrichedSessions.forEach(s => {
       const day = s.created_at?.slice(0, 10);
       const entry = days.find(d => d.date === day);
       if (entry) entry.count++;
     });
-
     setChartData(days);
 
-    // 6. Most common diagnoses (from clinical_data.diagnosis)
     const diagCount = {};
-    allSessions.forEach(s => {
+    enrichedSessions.forEach(s => {
       const diags = s.clinical_data?.diagnosis;
       if (Array.isArray(diags)) {
         diags.forEach(d => {
@@ -762,16 +759,9 @@ function AnalyticsTab({ adminId }) {
         });
       }
     });
+    setDiagnoses(Object.entries(diagCount).sort((a, b) => b[1] - a[1]).slice(0, 6));
 
-    const sorted = Object.entries(diagCount)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 6);
-
-    setDiagnoses(sorted);
-
-    // 7. Recent sessions (last 8)
-    setRecent(allSessions.slice(0, 8));
-
+    setRecent(enrichedSessions.slice(0, 8));
     setLoading(false);
   };
 
@@ -792,15 +782,12 @@ function AnalyticsTab({ adminId }) {
   );
 
   const maxCount = Math.max(...chartData.map(d => d.count), 1);
-
-  const diagMax = diagnoses.length > 0 ? diagnoses[0][1] : 1;
+  const diagMax  = diagnoses.length > 0 ? diagnoses[0][1] : 1;
 
   return (
     <div className="admin-content" style={{ maxWidth: "780px" }}>
       <h2 className="admin-page-title">📊 Analytics</h2>
-      <p className="admin-page-sub" style={{ marginBottom: "20px" }}>
-        Insights &amp; Usage
-      </p>
+      <p className="admin-page-sub" style={{ marginBottom: "20px" }}>Insights &amp; Usage</p>
 
       {/* ── Stat Cards ── */}
       <div className="analytics-stat-grid">
@@ -826,7 +813,7 @@ function AnalyticsTab({ adminId }) {
         </div>
       </div>
 
-      {/* ── Sessions Bar Chart ── */}
+      {/* ── Bar Chart ── */}
       <div className="admin-form-card" style={{ marginBottom: "16px" }}>
         <p className="analytics-section-title">📅 Sessions — Last 14 Days</p>
         <div className="analytics-bar-chart">
@@ -845,13 +832,11 @@ function AnalyticsTab({ adminId }) {
         </div>
       </div>
 
-      {/* ── Most Common Diagnoses ── */}
+      {/* ── Common Diagnoses ── */}
       <div className="admin-form-card" style={{ marginBottom: "16px" }}>
         <p className="analytics-section-title">🩺 Most Common Diagnoses</p>
         {diagnoses.length === 0 ? (
-          <p style={{ fontSize: "13px", color: "var(--text3)", padding: "8px 0" }}>
-            No diagnosis data yet.
-          </p>
+          <p style={{ fontSize: "13px", color: "var(--text3)", padding: "8px 0" }}>No diagnosis data yet.</p>
         ) : (
           <div className="analytics-diag-list">
             {diagnoses.map(([name, count], i) => (
@@ -860,10 +845,7 @@ function AnalyticsTab({ adminId }) {
                   {name.length > 36 ? name.slice(0, 34) + "…" : name}
                 </span>
                 <div className="analytics-diag-bar-track">
-                  <div
-                    className="analytics-diag-bar-fill"
-                    style={{ width: `${(count / diagMax) * 100}%` }}
-                  />
+                  <div className="analytics-diag-bar-fill" style={{ width: `${(count / diagMax) * 100}%` }} />
                 </div>
                 <span className="analytics-diag-count">{count}</span>
               </div>
@@ -872,47 +854,200 @@ function AnalyticsTab({ adminId }) {
         )}
       </div>
 
-      {/* ── Recent Sessions ── */}
+      {/* ── Recent Sessions (now clickable) ── */}
       <div className="admin-form-card">
         <p className="analytics-section-title">🕐 Recent Sessions</p>
         {recentSessions.length === 0 ? (
-          <p style={{ fontSize: "13px", color: "var(--text3)", padding: "8px 0" }}>
-            No sessions recorded yet.
-          </p>
+          <p style={{ fontSize: "13px", color: "var(--text3)", padding: "8px 0" }}>No sessions recorded yet.</p>
         ) : (
           <div className="analytics-session-list">
-            {recentSessions.map((s, i) => {
-              const diags = s.clinical_data?.diagnosis;
+            {recentSessions.map((s) => {
+              const diags    = s.clinical_data?.diagnosis;
               const firstDiag = Array.isArray(diags) && diags.length > 0 ? diags[0] : null;
-              const dt = new Date(s.created_at);
-              const dateStr = dt.toLocaleDateString("en-IN", {
-                day: "2-digit", month: "short", year: "numeric",
-              });
-              const timeStr = dt.toLocaleTimeString("en-IN", {
-                hour: "2-digit", minute: "2-digit", hour12: true,
-              });
+              const dt       = new Date(s.created_at);
+              const dateStr  = dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+              const timeStr  = dt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
 
               return (
-                <div key={s.id} className="analytics-session-row">
+                <div
+                  key={s.id}
+                  className="analytics-session-row analytics-session-row--clickable"
+                  onClick={() => setSelectedSession(s)}
+                  title="Click to view full session details"
+                >
                   <div className="analytics-session-icon">📄</div>
                   <div className="analytics-session-info">
                     <span className="analytics-session-patient">
                       Patient: {s.patient_name || s.patient_id || "Unknown"}
                     </span>
-                    <span className="analytics-session-time">
-                      {dateStr}, {timeStr}
-                    </span>
+                    <span className="analytics-session-time">{dateStr}, {timeStr}</span>
                   </div>
                   {firstDiag && (
                     <span className="analytics-session-diag">
                       {firstDiag.length > 24 ? firstDiag.slice(0, 22) + "…" : firstDiag}
                     </span>
                   )}
+                  <span className="analytics-session-arrow">›</span>
                 </div>
               );
             })}
           </div>
         )}
+      </div>
+
+      {/* ── Session Detail Modal ── */}
+      {selectedSession && (
+        <SessionDetailModal
+          session={selectedSession}
+          onClose={() => setSelectedSession(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Session Detail Modal ───────────────────────────────────────────────────────
+function SessionDetailModal({ session, onClose }) {
+  const cd  = session.clinical_data || {};
+  const soap = session.soap_note || {};
+  const dt  = new Date(session.created_at);
+  const dateStr = dt.toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
+  const timeStr = dt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+
+  // Helper: render a list field
+  const List = ({ items }) => {
+    if (!items || items.length === 0) return <span style={{ color: "var(--text3)" }}>—</span>;
+    return (
+      <ul style={{ margin: "4px 0 0 0", paddingLeft: "18px" }}>
+        {items.map((item, i) => <li key={i} style={{ fontSize: "13px", color: "var(--text)", marginBottom: "2px" }}>{item}</li>)}
+      </ul>
+    );
+  };
+
+  // Helper: render a key-value row inside modal
+  const Row = ({ label, value }) => (
+    <div className="drawer-row">
+      <span className="drawer-row-label">{label}</span>
+      <span className="drawer-row-val">{value || <span style={{ color: "var(--text3)" }}>—</span>}</span>
+    </div>
+  );
+
+  return (
+    <div className="drawer-overlay" onClick={onClose}>
+      <div
+        className="doctor-drawer drawer-open"
+        onClick={e => e.stopPropagation()}
+        style={{ maxWidth: "520px", overflowY: "auto" }}
+      >
+        {/* Header */}
+        <div className="drawer-header">
+          <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)" }}>Session Details</span>
+          <button className="drawer-close" onClick={onClose}>✕</button>
+        </div>
+
+        {/* Patient + meta */}
+        <div className="drawer-hero" style={{ alignItems: "flex-start" }}>
+          <div className="drawer-avatar" style={{ fontSize: "24px", background: "var(--accent-light)" }}>🧑</div>
+          <div className="drawer-hero-info">
+            <h3 className="drawer-hero-name">{session.patient_name || "Unknown Patient"}</h3>
+            <p className="drawer-hero-spec" style={{ color: "var(--text3)" }}>
+              {cd.patient_age ? `${cd.patient_age} · ` : ""}{cd.patient_gender || ""}
+            </p>
+            <p className="drawer-hero-email">{dateStr} at {timeStr}</p>
+            {session.doctor_email && (
+              <p style={{ fontSize: "11px", color: "var(--text3)", marginTop: "2px" }}>
+                By: {session.doctor_email}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="drawer-body">
+
+          {/* ── Clinical Data ── */}
+          <div className="drawer-section">
+            <p className="drawer-section-title">🩺 Clinical Summary</p>
+            <Row label="Chief Complaint" value={cd.chief_complaint} />
+            <Row label="Duration" value={cd.duration} />
+
+            <div className="drawer-row" style={{ alignItems: "flex-start" }}>
+              <span className="drawer-row-label">Symptoms</span>
+              <div style={{ flex: 1 }}><List items={cd.symptoms} /></div>
+            </div>
+
+            <div className="drawer-row" style={{ alignItems: "flex-start" }}>
+              <span className="drawer-row-label">Diagnosis</span>
+              <div style={{ flex: 1 }}><List items={cd.diagnosis} /></div>
+            </div>
+
+            <div className="drawer-row" style={{ alignItems: "flex-start" }}>
+              <span className="drawer-row-label">Medications</span>
+              <div style={{ flex: 1 }}><List items={cd.medications} /></div>
+            </div>
+
+            <div className="drawer-row" style={{ alignItems: "flex-start" }}>
+              <span className="drawer-row-label">Lab Orders</span>
+              <div style={{ flex: 1 }}><List items={cd.lab_orders} /></div>
+            </div>
+
+            <Row label="Follow-up" value={cd.follow_up} />
+          </div>
+
+          {/* ── Vitals ── */}
+          {cd.vitals && Object.keys(cd.vitals).length > 0 && (
+            <div className="drawer-section">
+              <p className="drawer-section-title">💓 Vitals</p>
+              {Object.entries(cd.vitals).map(([k, v]) => (
+                v ? <Row key={k} label={k} value={String(v)} /> : null
+              ))}
+            </div>
+          )}
+
+          {/* ── SOAP Note ── */}
+          {(soap.subjective || soap.objective || soap.assessment || soap.plan) && (
+            <div className="drawer-section">
+              <p className="drawer-section-title">📝 SOAP Note</p>
+              {[
+                { label: "S — Subjective", value: soap.subjective },
+                { label: "O — Objective",  value: soap.objective },
+                { label: "A — Assessment", value: soap.assessment },
+                { label: "P — Plan",       value: soap.plan },
+              ].map(({ label, value }) =>
+                value ? (
+                  <div key={label} style={{ marginBottom: "10px" }}>
+                    <p style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent)", marginBottom: "4px" }}>{label}</p>
+                    <p style={{ fontSize: "13px", color: "var(--text)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{value}</p>
+                  </div>
+                ) : null
+              )}
+            </div>
+          )}
+
+          {/* ── Transcript ── */}
+          {session.transcript && (
+            <div className="drawer-section">
+              <p className="drawer-section-title">🎙️ Transcript</p>
+              <div
+                style={{
+                  background: "var(--bg2)",
+                  borderRadius: "8px",
+                  padding: "10px 12px",
+                  fontSize: "12px",
+                  color: "var(--text2)",
+                  lineHeight: 1.6,
+                  maxHeight: "180px",
+                  overflowY: "auto",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                {session.transcript}
+              </div>
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   );
