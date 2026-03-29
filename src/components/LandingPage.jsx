@@ -94,11 +94,11 @@ function TypewriterWord({ words }) {
 
 // ── Customer logos ───────────────────────────────────────────────────────────
 const CUSTOMERS = [
-  { name: "Jilo Health",    logo: "https://jilohealth.com/favicon.ico",                                                        fallback: "JH",  color: "#3b82f6" },
-  { name: "Ruban Hospital", logo: "https://www.rubanhospital.com/wp-content/uploads/2021/01/ruban-logo.png",                    fallback: "RH",  color: "#10b981" },
-  { name: "Mediversal",     logo: "https://mediversal.in/wp-content/uploads/2023/01/mediversal-logo.png",                      fallback: "MV",  color: "#8b5cf6" },
-  { name: "NJACK – IIT Patna", logo: "https://www.iitp.ac.in/images/logo.png",                                                fallback: "IIT", color: "#f59e0b" },
-  { name: "NIT Patna",      logo: "https://www.nitp.ac.in/uploads/images/logo.png",                                           fallback: "NIT", color: "#ef4444" },
+  { name: "Jilo Health",    logo: "https://vtucaarhxgazksfyhdax.supabase.co/storage/v1/object/public/assets/Jilo_Health_New_Logo.png",                                                        fallback: "JH",  color: "#3b82f6" },
+  { name: "Ruban Hospital", logo: "https://rubanhospitals.com/public/assets/img/ruban.png",                    fallback: "RH",  color: "#10b981" },
+  { name: "Mediversal",     logo: "https://www.mediversalhomecare.in/uploads/mediversal_logo_521965c0f6.png",                      fallback: "MV",  color: "#8b5cf6" },
+  { name: "NJACK – IIT Patna", logo: "https://njack.iitp.ac.in/home/NJACK%20logo.svg",                                                fallback: "IIT", color: "#f59e0b" },
+  { name: "NIT Patna",      logo: "https://www.nitp.ac.in/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Flogo.00e5159e.png&w=128&q=75",                                           fallback: "NIT", color: "#ef4444" },
 ];
 
 function CustomerLogo({ customer }) {
