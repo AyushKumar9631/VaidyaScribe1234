@@ -345,24 +345,50 @@ export default function ExportPDFButton({
 
       document.body.removeChild(wrapper);
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-      const A4_W = 210;
-      const A4_H = 297;
-      const imgW = A4_W;
-      const imgH = (canvas.height * A4_W) / canvas.width;
+      const A4_W    = 210;
+      const A4_H    = 297;
+      const MARGIN  = 12;                          // mm — all four sides, every page
+      const contentW = A4_W - MARGIN * 2;          // 186 mm usable width
+      const contentH = A4_H - MARGIN * 2;          // 273 mm usable height per page
 
-      // Paginate if needed
-      let yPos = 0;
-      let pageHeight = A4_H;
-      let remaining = imgH;
+      // px-per-mm based on how wide the canvas is vs. the content width in mm
+      const pxPerMm     = canvas.width / contentW;
+      const pageHeightPx = Math.round(contentH * pxPerMm);  // canvas pixels per page
 
-      while (remaining > 0) {
-        pdf.addImage(imgData, "JPEG", 0, -yPos, imgW, imgH);
-        remaining -= pageHeight;
-        yPos += pageHeight;
-        if (remaining > 0) pdf.addPage();
+      let pageTop    = 0;   // canvas pixel row where the current page's slice starts
+      let firstPage  = true;
+
+      while (pageTop < canvas.height) {
+        if (!firstPage) pdf.addPage();
+        firstPage = false;
+
+        // How many source pixels are on this page (last page may be shorter)
+        const sliceH = Math.min(pageHeightPx, canvas.height - pageTop);
+
+        // Draw only this page's slice onto a fresh white canvas
+        const pageCanvas = document.createElement("canvas");
+        pageCanvas.width  = canvas.width;
+        pageCanvas.height = pageHeightPx;           // always full height → white at bottom of last page
+        const ctx = pageCanvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+        ctx.drawImage(
+          canvas,
+          0, pageTop, canvas.width, sliceH,   // source rect
+          0, 0,       canvas.width, sliceH,   // destination rect (top of pageCanvas)
+        );
+
+        // Place the slice inside the margin box — MARGIN gap on all four sides
+        pdf.addImage(
+          pageCanvas.toDataURL("image/jpeg", 0.95),
+          "JPEG",
+          MARGIN, MARGIN,     // x, y — left and top margin
+          contentW, contentH, // width, height — fills exactly the content area
+        );
+
+        pageTop += pageHeightPx;
       }
 
       const fileName = `prescription_${
