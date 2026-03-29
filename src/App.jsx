@@ -9,6 +9,7 @@ import PatientHistory from "./components/PatientHistory";
 import PatientSessionHistory from "./components/PatientSessionHistory";
 import AdminDashboard from "./components/AdminDashboard";
 import LinkHospital from "./components/LinkHospital";
+import ExportPDFButton from "./components/ExportPDFButton";
 import { transcribeAudio, extractClinicalEntities } from "./services/groq";
 import { buildFHIRBundle } from "./services/fhir";
 import { supabase } from "./services/supabase";
@@ -46,6 +47,13 @@ export default function App() {
       .eq("doctor_id", uid)
       .single();
     if (link?.hospitals?.hospital_name) setHospitalName(link.hospitals.hospital_name);
+    // Load doctor profile for PDF export
+    const { data: dp } = await supabase
+      .from("doctor_profiles")
+      .select("full_name,registration_id,specialization,qualification,photo_url")
+      .eq("user_id", uid)
+      .single();
+    if (dp) setDoctorProfile(dp);
     setAuthLoading(false);
   };
 
@@ -63,6 +71,7 @@ export default function App() {
   const [showLinkHospital, setShowLinkHospital] = useState(false);
   const [sessionSavedAt, setSessionSavedAt] = useState(null);
   const [patientInfo, setPatientInfo]   = useState({ patientId: "", patientName: "", language: { label: "Hindi", code: "hi" } });
+  const [doctorProfile, setDoctorProfile] = useState(null);
 
   // Doctor sidebar nav
   const [doctorNav, setDoctorNav]       = useState("scribe");
@@ -228,22 +237,37 @@ export default function App() {
               {showResults && (
                 <>
                   <div className="results">
-                    <div className="tabs">
-                      {["transcript", "clinical", "soap", "fhir"].map((tab) => (
-                        <button
-                          key={tab}
-                          className={`tab ${activeTab === tab ? "active" : ""}`}
-                          onClick={() => setActiveTab(tab)}
-                        >
-                          {tab === "transcript" && "📝 Transcript"}
-                          {tab === "clinical"   && "🩺 Clinical Notes"}
-                          {tab === "soap"       && "📋 SOAP Note"}
-                          {tab === "fhir"       && "⚕️ FHIR Bundle"}
-                          {tab === "clinical" && clinicalData && <span className="dot" />}
-                          {tab === "soap"     && soapNote     && <span className="dot" />}
-                          {tab === "fhir"     && fhirBundle   && <span className="dot" />}
-                        </button>
-                      ))}
+                    <div className="tabs-row">
+                      <div className="tabs">
+                        {["transcript", "clinical", "soap", "fhir"].map((tab) => (
+                          <button
+                            key={tab}
+                            className={`tab ${activeTab === tab ? "active" : ""}`}
+                            onClick={() => setActiveTab(tab)}
+                          >
+                            {tab === "transcript" && "📝 Transcript"}
+                            {tab === "clinical"   && "🩺 Clinical Notes"}
+                            {tab === "soap"       && "📋 SOAP Note"}
+                            {tab === "fhir"       && "⚕️ FHIR Bundle"}
+                            {tab === "clinical" && clinicalData && <span className="dot" />}
+                            {tab === "soap"     && soapNote     && <span className="dot" />}
+                            {tab === "fhir"     && fhirBundle   && <span className="dot" />}
+                          </button>
+                        ))}
+                      </div>
+                      {phase === "done" && (
+                        <div className="tabs-row-actions">
+                          <ExportPDFButton
+                            transcript={transcript}
+                            clinicalData={clinicalData}
+                            soapNote={soapNote}
+                            fhirBundle={fhirBundle}
+                            patientInfo={patientInfo}
+                            doctorProfile={doctorProfile}
+                            hospitalName={hospitalName}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     <div className="tab-content">

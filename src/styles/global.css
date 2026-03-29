@@ -1194,6 +1194,60 @@ body {
 }
 .export-btn:hover { background: rgba(90,171,255,0.2); }
 
+/* ── Export PDF button ──────────────────────────────────────────────────── */
+.export-pdf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--green-light);
+  border: 1px solid rgba(18,184,134,0.35);
+  border-radius: 7px;
+  color: var(--green);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.export-pdf-btn:hover:not(:disabled) {
+  background: rgba(18,184,134,0.22);
+  border-color: rgba(18,184,134,0.55);
+  box-shadow: 0 0 0 3px var(--green-glow);
+}
+.export-pdf-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.export-pdf-spinner {
+  width: 11px;
+  height: 11px;
+  border: 2px solid rgba(18,184,134,0.3);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+/* ── Tabs row with export button ────────────────────────────────────────── */
+.tabs-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.tabs-row .tabs {
+  flex: 1;
+  border-bottom: none;
+}
+.tabs-row-actions {
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .loading-state {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 14px; min-height: 180px; color: var(--text3); font-size: 13px;
