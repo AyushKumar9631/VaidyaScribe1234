@@ -1,3 +1,5 @@
+import { ThemeToggleBtn } from "../context/ThemeContext";
+
 export default function Header({ patientName, onHistoryClick, onSignOut, userEmail, onLinkHospital, hospitalName }) {
   return (
     <header className="header">
@@ -13,6 +15,9 @@ export default function Header({ patientName, onHistoryClick, onSignOut, userEma
 
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
 
+        {/* Theme toggle */}
+        <ThemeToggleBtn />
+
         {/* Hospital link status / button */}
         <button
           onClick={onLinkHospital}
@@ -20,7 +25,7 @@ export default function Header({ patientName, onHistoryClick, onSignOut, userEma
             display: "flex", alignItems: "center", gap: "5px",
             padding: "5px 12px",
             background: hospitalName ? "var(--green-light)" : "var(--bg)",
-            border: `1px solid ${hospitalName ? "#bbf7d0" : "var(--border2)"}`,
+            border: `1px solid ${hospitalName ? "rgba(18,184,134,0.35)" : "var(--border2)"}`,
             borderRadius: "8px",
             color: hospitalName ? "var(--green)" : "var(--text2)",
             fontSize: "12px", fontWeight: "500",
@@ -37,7 +42,7 @@ export default function Header({ patientName, onHistoryClick, onSignOut, userEma
             display: "flex", alignItems: "center", gap: "5px",
             padding: "5px 12px",
             background: "var(--blue-light)",
-            border: "1px solid #bfdbfe",
+            border: "1px solid rgba(90,171,255,0.35)",
             borderRadius: "8px",
             color: "var(--blue)",
             fontSize: "12px", fontWeight: "500",

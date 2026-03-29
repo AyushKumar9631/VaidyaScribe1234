@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import DoctorAuth from "./DoctorAuth";
 import AdminAuth from "./AdminAuth";
+import { ThemeToggleBtn } from "../context/ThemeContext";
 
 // ── Loader → Logo animation ──────────────────────────────────────────────────
 function SplashLoader({ onDone }) {
@@ -19,10 +20,10 @@ function SplashLoader({ onDone }) {
       <div className={`splash-content ${phase === "shrinking" ? "splash-content-exit" : ""}`}>
         <div className="splash-icon">
           <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
-            <rect width="52" height="52" rx="14" fill="#0ea47a"/>
+            <rect width="52" height="52" rx="14" fill="#12b886"/>
             <path d="M14 26C14 19.373 19.373 14 26 14C32.627 14 38 19.373 38 26" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
             <circle cx="26" cy="32" r="6" fill="white"/>
-            <path d="M22 26L26 22L30 26" stroke="#0ea47a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M22 26L26 22L30 26" stroke="#12b886" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
         <h1 className="splash-title">VaidyaScribe</h1>
@@ -93,36 +94,11 @@ function TypewriterWord({ words }) {
 
 // ── Customer logos ───────────────────────────────────────────────────────────
 const CUSTOMERS = [
-  {
-    name: "Jilo Health",
-    logo: "https://jilohealth.com/favicon.ico",
-    fallback: "JH",
-    color: "#3b82f6",
-  },
-  {
-    name: "Ruban Hospital",
-    logo: "https://www.rubanhospital.com/wp-content/uploads/2021/01/ruban-logo.png",
-    fallback: "RH",
-    color: "#10b981",
-  },
-  {
-    name: "Mediversal",
-    logo: "https://mediversal.in/wp-content/uploads/2023/01/mediversal-logo.png",
-    fallback: "MV",
-    color: "#8b5cf6",
-  },
-  {
-    name: "NJACK – IIT Patna",
-    logo: "https://www.iitp.ac.in/images/logo.png",
-    fallback: "IIT",
-    color: "#f59e0b",
-  },
-  {
-    name: "NIT Patna",
-    logo: "https://www.nitp.ac.in/uploads/images/logo.png",
-    fallback: "NIT",
-    color: "#ef4444",
-  },
+  { name: "Jilo Health",    logo: "https://jilohealth.com/favicon.ico",                                                        fallback: "JH",  color: "#3b82f6" },
+  { name: "Ruban Hospital", logo: "https://www.rubanhospital.com/wp-content/uploads/2021/01/ruban-logo.png",                    fallback: "RH",  color: "#10b981" },
+  { name: "Mediversal",     logo: "https://mediversal.in/wp-content/uploads/2023/01/mediversal-logo.png",                      fallback: "MV",  color: "#8b5cf6" },
+  { name: "NJACK – IIT Patna", logo: "https://www.iitp.ac.in/images/logo.png",                                                fallback: "IIT", color: "#f59e0b" },
+  { name: "NIT Patna",      logo: "https://www.nitp.ac.in/uploads/images/logo.png",                                           fallback: "NIT", color: "#ef4444" },
 ];
 
 function CustomerLogo({ customer }) {
@@ -164,13 +140,14 @@ function NavBar({ onLogin, onAdmin }) {
       <div className="nav-logo">
         <div className="nav-logo-mark">
           <svg width="22" height="22" viewBox="0 0 52 52" fill="none">
-            <rect width="52" height="52" rx="14" fill="#0ea47a"/>
+            <rect width="52" height="52" rx="14" fill="#12b886"/>
             <path d="M14 26C14 19.373 19.373 14 26 14C32.627 14 38 19.373 38 26" stroke="white" strokeWidth="3" strokeLinecap="round"/>
             <circle cx="26" cy="32" r="6" fill="white"/>
           </svg>
         </div>
         <span className="nav-brand">VaidyaScribe</span>
       </div>
+
       <div className="nav-links">
         <a href="#features" className="nav-link">Features</a>
         <a href="#how-it-works" className="nav-link">How it works</a>
@@ -178,7 +155,9 @@ function NavBar({ onLogin, onAdmin }) {
         <a href="#security" className="nav-link">Security</a>
         <a href="#pricing" className="nav-link">Pricing</a>
       </div>
+
       <div className="nav-actions">
+        <ThemeToggleBtn />
         <button className="nav-btn-ghost" onClick={onAdmin}>Hospital Admin</button>
         <button className="nav-btn-primary" onClick={onLogin}>Doctor Login →</button>
       </div>
@@ -234,10 +213,7 @@ export default function LandingPage() {
             </div>
 
             <h1 className="hero-h1">
-              <CycleWord
-                words={processingWords}
-                className="hero-cycle"
-              />
+              <CycleWord words={processingWords} className="hero-cycle" />
               <br />
               <span className="hero-h1-sub">happens automatically</span>
             </h1>
@@ -297,36 +273,12 @@ export default function LandingPage() {
             <p className="section-sub">From voice to structured FHIR data in seconds.</p>
           </div>
           <div className="features-grid">
-            <FeatureCard
-              icon="🎙️"
-              title="Ambient Voice Capture"
-              desc="Records the doctor-patient conversation in real time. No button mashing. Just talk."
-            />
-            <FeatureCard
-              icon="⚡"
-              title="Instant Transcription"
-              desc="Groq Whisper processes audio in under 3 seconds, even in noisy OPD environments."
-            />
-            <FeatureCard
-              icon="🩺"
-              title="Clinical NLP"
-              desc="Extracts chief complaints, vitals, diagnosis, medications, and lab orders automatically."
-            />
-            <FeatureCard
-              icon="📋"
-              title="FHIR R4 Export"
-              desc="Every session produces a standards-compliant FHIR bundle ready for any EHR system."
-            />
-            <FeatureCard
-              icon="🌐"
-              title="Multilingual Support"
-              desc="Hindi, English, Tamil, Bengali, and 6 more languages — with code-mixed speech support."
-            />
-            <FeatureCard
-              icon="🏥"
-              title="Hospital Dashboard"
-              desc="Admins manage doctors, link hospitals, and monitor session analytics from one panel."
-            />
+            <FeatureCard icon="🎙️" title="Ambient Voice Capture"   desc="Records the doctor-patient conversation in real time. No button mashing. Just talk." />
+            <FeatureCard icon="⚡" title="Instant Transcription"    desc="Groq Whisper processes audio in under 3 seconds, even in noisy OPD environments." />
+            <FeatureCard icon="🩺" title="Clinical NLP"             desc="Extracts chief complaints, vitals, diagnosis, medications, and lab orders automatically." />
+            <FeatureCard icon="📋" title="FHIR R4 Export"           desc="Every session produces a standards-compliant FHIR bundle ready for any EHR system." />
+            <FeatureCard icon="🌐" title="Multilingual Support"     desc="Hindi, English, Tamil, Bengali, and 6 more languages — with code-mixed speech support." />
+            <FeatureCard icon="🏥" title="Hospital Dashboard"       desc="Admins manage doctors, link hospitals, and monitor session analytics from one panel." />
           </div>
         </section>
 
@@ -339,8 +291,8 @@ export default function LandingPage() {
           <div className="steps-row">
             {[
               { n: "01", title: "Doctor starts session", desc: "Tap record. VaidyaScribe begins listening in the background while the consultation proceeds naturally." },
-              { n: "02", title: "AI processes speech", desc: "Whisper transcribes, Qwen3-32B extracts entities. Everything happens on-device in under 3 seconds." },
-              { n: "03", title: "Record is born", desc: "A complete FHIR R4 bundle — diagnosis, prescriptions, follow-ups — is saved and ready to export." },
+              { n: "02", title: "AI processes speech",   desc: "Whisper transcribes, Qwen3-32B extracts entities. Everything happens on-device in under 3 seconds." },
+              { n: "03", title: "Record is born",        desc: "A complete FHIR R4 bundle — diagnosis, prescriptions, follow-ups — is saved and ready to export." },
             ].map(s => (
               <div className="step-card" key={s.n}>
                 <div className="step-num">{s.n}</div>
@@ -405,16 +357,16 @@ export default function LandingPage() {
 // ── Terminal demo animation ──────────────────────────────────────────────────
 function TerminalDemo() {
   const lines = [
-    { delay: 0,    text: "$ vaidyascribe start-session", type: "cmd" },
-    { delay: 800,  text: "● Recording... 00:02:14", type: "info" },
-    { delay: 1400, text: "◉ Transcribing audio with Whisper...", type: "processing" },
-    { delay: 2200, text: "◉ Extracting clinical entities (Qwen3-32B)...", type: "processing" },
-    { delay: 3000, text: "◉ Generating FHIR R4 bundle...", type: "processing" },
-    { delay: 3600, text: "✓ Chief complaint: Chest pain, 3 days", type: "success" },
-    { delay: 3800, text: "✓ Diagnosis: Costochondritis (M94.0)", type: "success" },
-    { delay: 4000, text: "✓ Rx: Ibuprofen 400mg × 5 days", type: "success" },
-    { delay: 4200, text: "✓ FHIR bundle saved · 4 resources", type: "success" },
-    { delay: 4600, text: "Session complete in 2.8s", type: "done" },
+    { delay: 0,    text: "$ vaidyascribe start-session",                      type: "cmd" },
+    { delay: 800,  text: "● Recording... 00:02:14",                            type: "info" },
+    { delay: 1400, text: "◉ Transcribing audio with Whisper...",               type: "processing" },
+    { delay: 2200, text: "◉ Extracting clinical entities (Qwen3-32B)...",      type: "processing" },
+    { delay: 3000, text: "◉ Generating FHIR R4 bundle...",                    type: "processing" },
+    { delay: 3600, text: "✓ Chief complaint: Chest pain, 3 days",             type: "success" },
+    { delay: 3800, text: "✓ Diagnosis: Costochondritis (M94.0)",              type: "success" },
+    { delay: 4000, text: "✓ Rx: Ibuprofen 400mg × 5 days",                   type: "success" },
+    { delay: 4200, text: "✓ FHIR bundle saved · 4 resources",                type: "success" },
+    { delay: 4600, text: "Session complete in 2.8s",                          type: "done" },
   ];
   const [shown, setShown] = useState([]);
   useEffect(() => {
