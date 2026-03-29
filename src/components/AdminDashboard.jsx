@@ -29,6 +29,12 @@ export default function AdminDashboard({ user }) {
           >
             👨‍⚕️ Doctors
           </button>
+          <button
+            className={`admin-nav-item ${activeTab === "analytics" ? "active" : ""}`}
+            onClick={() => setActiveTab("analytics")}
+          >
+            📊 Analytics
+          </button>
         </nav>
 
         <div className="admin-sidebar-footer">
@@ -46,8 +52,9 @@ export default function AdminDashboard({ user }) {
 
       {/* Main content */}
       <main className="admin-main">
-        {activeTab === "hospital" && <HospitalTab adminId={user.id} />}
-        {activeTab === "doctors"  && <DoctorsTab  adminId={user.id} />}
+        {activeTab === "hospital"  && <HospitalTab  adminId={user.id} />}
+        {activeTab === "doctors"   && <DoctorsTab   adminId={user.id} />}
+        {activeTab === "analytics" && <AnalyticsTab adminId={user.id} />}
       </main>
     </div>
   );
@@ -469,6 +476,249 @@ function DoctorsTab({ adminId }) {
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+// ── Analytics Tab ─────────────────────────────────────────────────────────────
+// Paste this function into AdminDashboard.jsx alongside HospitalTab & DoctorsTab
+
+function AnalyticsTab({ adminId }) {
+  const [loading, setLoading]       = useState(true);
+  const [stats, setStats]           = useState(null);
+  const [chartData, setChartData]   = useState([]);
+  const [diagnoses, setDiagnoses]   = useState([]);
+  const [recentSessions, setRecent] = useState([]);
+
+  useEffect(() => { fetchAnalytics(); }, []);
+
+  const fetchAnalytics = async () => {
+    setLoading(true);
+
+    // 1. Get hospital for this admin
+    const { data: hospital } = await supabase
+      .from("hospitals")
+      .select("id")
+      .eq("admin_id", adminId)
+      .single();
+
+    if (!hospital) { setLoading(false); return; }
+
+    // 2. Get all linked doctors
+    const { data: links } = await supabase
+      .from("doctor_hospital_links")
+      .select("doctor_id")
+      .eq("hospital_id", hospital.id);
+
+    const doctorIds = (links || []).map(l => l.doctor_id);
+    const linkedDoctors = doctorIds.length;
+
+    if (linkedDoctors === 0) {
+      setStats({ totalSessions: 0, uniquePatients: 0, linkedDoctors: 0, avgPerDoctor: 0 });
+      setLoading(false);
+      return;
+    }
+
+    // 3. Get all sessions for those doctors
+    const { data: sessions } = await supabase
+      .from("session_logs")
+      .select("id, patient_id, patient_name, created_at, clinical_data")
+      .in("user_id", doctorIds)
+      .order("created_at", { ascending: false });
+
+    const allSessions = sessions || [];
+
+    // 4. Stats
+    const uniquePatients = new Set(allSessions.map(s => s.patient_id)).size;
+    const totalSessions  = allSessions.length;
+    const avgPerDoctor   = linkedDoctors > 0 ? Math.round(totalSessions / linkedDoctors) : 0;
+
+    setStats({ totalSessions, uniquePatients, linkedDoctors, avgPerDoctor });
+
+    // 5. Sessions over last 14 days
+    const today = new Date();
+    const days  = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() - (13 - i));
+      return {
+        label: d.toLocaleDateString("en-IN", { day: "2-digit" }),
+        date:  d.toISOString().slice(0, 10),
+        count: 0,
+      };
+    });
+
+    allSessions.forEach(s => {
+      const day = s.created_at?.slice(0, 10);
+      const entry = days.find(d => d.date === day);
+      if (entry) entry.count++;
+    });
+
+    setChartData(days);
+
+    // 6. Most common diagnoses (from clinical_data.diagnosis)
+    const diagCount = {};
+    allSessions.forEach(s => {
+      const diags = s.clinical_data?.diagnosis;
+      if (Array.isArray(diags)) {
+        diags.forEach(d => {
+          if (d && d.trim()) {
+            const key = d.trim();
+            diagCount[key] = (diagCount[key] || 0) + 1;
+          }
+        });
+      }
+    });
+
+    const sorted = Object.entries(diagCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6);
+
+    setDiagnoses(sorted);
+
+    // 7. Recent sessions (last 8)
+    setRecent(allSessions.slice(0, 8));
+
+    setLoading(false);
+  };
+
+  if (loading) return (
+    <div className="admin-loading">
+      <div className="pulse-ring" />
+      <p>Loading analytics...</p>
+    </div>
+  );
+
+  if (!stats) return (
+    <div className="admin-content">
+      <div className="admin-empty">
+        <p style={{ fontSize: "32px" }}>📊</p>
+        <p>No hospital found. Please set up your hospital first.</p>
+      </div>
+    </div>
+  );
+
+  const maxCount = Math.max(...chartData.map(d => d.count), 1);
+
+  const diagMax = diagnoses.length > 0 ? diagnoses[0][1] : 1;
+
+  return (
+    <div className="admin-content" style={{ maxWidth: "780px" }}>
+      <h2 className="admin-page-title">📊 Analytics</h2>
+      <p className="admin-page-sub" style={{ marginBottom: "20px" }}>
+        Insights &amp; Usage
+      </p>
+
+      {/* ── Stat Cards ── */}
+      <div className="analytics-stat-grid">
+        <div className="analytics-stat-card">
+          <span className="analytics-stat-icon">📋</span>
+          <span className="analytics-stat-val">{stats.totalSessions}</span>
+          <span className="analytics-stat-label">TOTAL SESSIONS</span>
+        </div>
+        <div className="analytics-stat-card">
+          <span className="analytics-stat-icon">🧑</span>
+          <span className="analytics-stat-val">{stats.uniquePatients}</span>
+          <span className="analytics-stat-label">UNIQUE PATIENTS</span>
+        </div>
+        <div className="analytics-stat-card">
+          <span className="analytics-stat-icon">👨‍⚕️</span>
+          <span className="analytics-stat-val">{stats.linkedDoctors}</span>
+          <span className="analytics-stat-label">LINKED DOCTORS</span>
+        </div>
+        <div className="analytics-stat-card">
+          <span className="analytics-stat-icon">📈</span>
+          <span className="analytics-stat-val">{stats.avgPerDoctor}</span>
+          <span className="analytics-stat-label">AVG / DOCTOR</span>
+        </div>
+      </div>
+
+      {/* ── Sessions Bar Chart ── */}
+      <div className="admin-form-card" style={{ marginBottom: "16px" }}>
+        <p className="analytics-section-title">📅 Sessions — Last 14 Days</p>
+        <div className="analytics-bar-chart">
+          {chartData.map((d, i) => (
+            <div key={i} className="analytics-bar-col">
+              <div className="analytics-bar-track">
+                <div
+                  className="analytics-bar-fill"
+                  style={{ height: `${(d.count / maxCount) * 100}%` }}
+                  title={`${d.count} session${d.count !== 1 ? "s" : ""}`}
+                />
+              </div>
+              <span className="analytics-bar-label">{d.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Most Common Diagnoses ── */}
+      <div className="admin-form-card" style={{ marginBottom: "16px" }}>
+        <p className="analytics-section-title">🩺 Most Common Diagnoses</p>
+        {diagnoses.length === 0 ? (
+          <p style={{ fontSize: "13px", color: "var(--text3)", padding: "8px 0" }}>
+            No diagnosis data yet.
+          </p>
+        ) : (
+          <div className="analytics-diag-list">
+            {diagnoses.map(([name, count], i) => (
+              <div key={i} className="analytics-diag-row">
+                <span className="analytics-diag-name" title={name}>
+                  {name.length > 36 ? name.slice(0, 34) + "…" : name}
+                </span>
+                <div className="analytics-diag-bar-track">
+                  <div
+                    className="analytics-diag-bar-fill"
+                    style={{ width: `${(count / diagMax) * 100}%` }}
+                  />
+                </div>
+                <span className="analytics-diag-count">{count}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Recent Sessions ── */}
+      <div className="admin-form-card">
+        <p className="analytics-section-title">🕐 Recent Sessions</p>
+        {recentSessions.length === 0 ? (
+          <p style={{ fontSize: "13px", color: "var(--text3)", padding: "8px 0" }}>
+            No sessions recorded yet.
+          </p>
+        ) : (
+          <div className="analytics-session-list">
+            {recentSessions.map((s, i) => {
+              const diags = s.clinical_data?.diagnosis;
+              const firstDiag = Array.isArray(diags) && diags.length > 0 ? diags[0] : null;
+              const dt = new Date(s.created_at);
+              const dateStr = dt.toLocaleDateString("en-IN", {
+                day: "2-digit", month: "short", year: "numeric",
+              });
+              const timeStr = dt.toLocaleTimeString("en-IN", {
+                hour: "2-digit", minute: "2-digit", hour12: true,
+              });
+
+              return (
+                <div key={s.id} className="analytics-session-row">
+                  <div className="analytics-session-icon">📄</div>
+                  <div className="analytics-session-info">
+                    <span className="analytics-session-patient">
+                      Patient: {s.patient_name || s.patient_id || "Unknown"}
+                    </span>
+                    <span className="analytics-session-time">
+                      {dateStr}, {timeStr}
+                    </span>
+                  </div>
+                  {firstDiag && (
+                    <span className="analytics-session-diag">
+                      {firstDiag.length > 24 ? firstDiag.slice(0, 22) + "…" : firstDiag}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
