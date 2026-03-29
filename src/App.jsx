@@ -21,6 +21,8 @@ export default function App() {
   const [role, setRole]               = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [hospitalName, setHospitalName] = useState(null);
+  // FIX 1: Added missing hospitalLogo state
+  const [hospitalLogo, setHospitalLogo] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -41,12 +43,18 @@ export default function App() {
   const loadProfile = async (uid) => {
     const { data } = await supabase.from("profiles").select("role").eq("id", uid).single();
     setRole(data?.role ?? "doctor");
+
+    // FIX 2: Query now also selects logo_url from the linked hospital
     const { data: link } = await supabase
       .from("doctor_hospital_links")
-      .select("hospitals(hospital_name)")
+      .select("hospitals(hospital_name, logo_url)")
       .eq("doctor_id", uid)
       .single();
+
     if (link?.hospitals?.hospital_name) setHospitalName(link.hospitals.hospital_name);
+    // FIX 3: Store the hospital logo URL so it can be passed to ExportPDFButton
+    if (link?.hospitals?.logo_url) setHospitalLogo(link.hospitals.logo_url);
+
     // Load doctor profile for PDF export
     const { data: dp } = await supabase
       .from("doctor_profiles")
@@ -257,6 +265,7 @@ export default function App() {
                       </div>
                       {phase === "done" && (
                         <div className="tabs-row-actions">
+                          {/* FIX 4: Pass hospitalLogo prop to ExportPDFButton */}
                           <ExportPDFButton
                             transcript={transcript}
                             clinicalData={clinicalData}
@@ -265,6 +274,7 @@ export default function App() {
                             patientInfo={patientInfo}
                             doctorProfile={doctorProfile}
                             hospitalName={hospitalName}
+                            hospitalLogo={hospitalLogo}
                           />
                         </div>
                       )}
