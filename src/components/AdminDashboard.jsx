@@ -3,7 +3,14 @@ import { ThemeToggleBtn } from "../context/ThemeContext";
 import { supabase } from "../services/supabase";
 
 export default function AdminDashboard({ user }) {
-  const [activeTab, setActiveTab] = useState("hospital");
+  const [activeTab, setActiveTab]       = useState("hospital");
+  const [doctorsTabKey, setDoctorsTabKey] = useState(0);
+
+  const handleTabChange = (tab) => {
+    // Every time admin clicks the Doctors tab, bump the key to force a fresh fetch
+    if (tab === "doctors") setDoctorsTabKey(k => k + 1);
+    setActiveTab(tab);
+  };
 
   return (
     <div className="admin-layout">
@@ -20,19 +27,19 @@ export default function AdminDashboard({ user }) {
         <nav className="admin-nav">
           <button
             className={`admin-nav-item ${activeTab === "hospital" ? "active" : ""}`}
-            onClick={() => setActiveTab("hospital")}
+            onClick={() => handleTabChange("hospital")}
           >
             🏥 Hospital Details
           </button>
           <button
             className={`admin-nav-item ${activeTab === "doctors" ? "active" : ""}`}
-            onClick={() => setActiveTab("doctors")}
+            onClick={() => handleTabChange("doctors")}
           >
             👨‍⚕️ Doctors
           </button>
           <button
             className={`admin-nav-item ${activeTab === "analytics" ? "active" : ""}`}
-            onClick={() => setActiveTab("analytics")}
+            onClick={() => handleTabChange("analytics")}
           >
             📊 Analytics
           </button>
@@ -57,7 +64,7 @@ export default function AdminDashboard({ user }) {
       {/* Main content */}
       <main className="admin-main">
         {activeTab === "hospital"  && <HospitalTab  adminId={user.id} />}
-        {activeTab === "doctors"   && <DoctorsTab   adminId={user.id} />}
+        {activeTab === "doctors"   && <DoctorsTab   key={doctorsTabKey} adminId={user.id} />}
         {activeTab === "analytics" && <AnalyticsTab adminId={user.id} />}
       </main>
     </div>
@@ -398,13 +405,17 @@ function HospitalTab({ adminId }) {
 function DoctorsTab({ adminId }) {
   const [doctors, setDoctors]       = useState([]);
   const [loading, setLoading]       = useState(true);
-  const [selected, setSelected]     = useState(null);   // doc with profile attached
+  const [selected, setSelected]     = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => { fetchDoctors(); }, []);
+  // Re-fetch every time the tab is rendered (refreshKey changes on manual refresh)
+  useEffect(() => { fetchDoctors(); }, [refreshKey]);
 
   const fetchDoctors = async () => {
     setLoading(true);
+
+    // 1. Get this admin's hospital
     const { data: hospital } = await supabase
       .from("hospitals")
       .select("id")
@@ -413,36 +424,51 @@ function DoctorsTab({ adminId }) {
 
     if (!hospital) { setLoading(false); return; }
 
+    // 2. Get all doctor links for this hospital
     const { data: links } = await supabase
       .from("doctor_hospital_links")
       .select("*")
       .eq("hospital_id", hospital.id)
       .order("linked_at", { ascending: false });
 
-    if (!links) { setLoading(false); return; }
+    if (!links || links.length === 0) { setDoctors([]); setLoading(false); return; }
 
-    const enriched = await Promise.all(
-      links.map(async (link) => {
-        const { data: sessions } = await supabase
-          .from("session_logs")
-          .select("id, patient_id, created_at")
-          .eq("user_id", link.doctor_id);
+    // 3. Fetch sessions + profiles in parallel for all doctors at once
+    const doctorIds = links.map(l => l.doctor_id);
 
-        const { data: profile } = await supabase
-          .from("doctor_profiles")
-          .select("*")
-          .eq("user_id", link.doctor_id)
-          .single();
+    const [{ data: allSessions }, { data: allProfiles }] = await Promise.all([
+      supabase
+        .from("session_logs")
+        .select("id, user_id, patient_id, created_at")
+        .in("user_id", doctorIds),
+      supabase
+        .from("doctor_profiles")
+        .select("*")
+        .in("user_id", doctorIds),
+    ]);
 
-        const uniquePatients = new Set((sessions || []).map(s => s.patient_id)).size;
-        const totalSessions  = (sessions || []).length;
-        const lastActive     = sessions?.length
-          ? new Date(Math.max(...sessions.map(s => new Date(s.created_at)))).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
-          : "Never";
+    const sessionsByDoctor = {};
+    (allSessions || []).forEach(s => {
+      if (!sessionsByDoctor[s.user_id]) sessionsByDoctor[s.user_id] = [];
+      sessionsByDoctor[s.user_id].push(s);
+    });
 
-        return { ...link, totalSessions, uniquePatients, lastActive, profile: profile || null };
-      })
-    );
+    const profileByDoctor = {};
+    (allProfiles || []).forEach(p => { profileByDoctor[p.user_id] = p; });
+
+    // 4. Enrich each link row
+    const enriched = links.map((link) => {
+      const sessions       = sessionsByDoctor[link.doctor_id] || [];
+      const uniquePatients = new Set(sessions.map(s => s.patient_id)).size;
+      const totalSessions  = sessions.length;
+      const lastActive     = sessions.length
+        ? new Date(Math.max(...sessions.map(s => new Date(s.created_at))))
+            .toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+        : "Never";
+      const profile = profileByDoctor[link.doctor_id] || null;
+
+      return { ...link, totalSessions, uniquePatients, lastActive, profile };
+    });
 
     setDoctors(enriched);
     setLoading(false);
@@ -462,7 +488,20 @@ function DoctorsTab({ adminId }) {
 
   return (
     <div className="admin-content">
-      <h2 className="admin-page-title">👨‍⚕️ Linked Doctors</h2>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+        <h2 className="admin-page-title" style={{ margin: 0 }}>👨‍⚕️ Linked Doctors</h2>
+        <button
+          onClick={() => setRefreshKey(k => k + 1)}
+          style={{
+            background: "var(--green-light)", border: "1px solid rgba(18,184,134,0.35)",
+            borderRadius: "7px", color: "var(--green)", fontFamily: "var(--font)",
+            fontSize: "12px", fontWeight: 600, padding: "6px 14px", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: "6px",
+          }}
+        >
+          ↻ Refresh
+        </button>
+      </div>
       <p className="admin-page-sub">{doctors.length} doctor{doctors.length !== 1 ? "s" : ""} linked to your hospital</p>
 
       {doctors.length === 0 && (
@@ -568,8 +607,6 @@ function DoctorsTab({ adminId }) {
 
             {selected.profile ? (
               <div className="drawer-body">
-
-                {/* Identity */}
                 <div className="drawer-section">
                   <p className="drawer-section-title">Identity</p>
                   <div className="drawer-row">
@@ -590,7 +627,6 @@ function DoctorsTab({ adminId }) {
                   </div>
                 </div>
 
-                {/* Contact */}
                 <div className="drawer-section">
                   <p className="drawer-section-title">Contact</p>
                   <div className="drawer-row">
@@ -605,7 +641,6 @@ function DoctorsTab({ adminId }) {
                   </div>
                 </div>
 
-                {/* Bio */}
                 {selected.profile.bio && (
                   <div className="drawer-section">
                     <p className="drawer-section-title">Bio</p>
@@ -620,6 +655,10 @@ function DoctorsTab({ adminId }) {
                   <p>This doctor hasn't filled in their profile yet.</p>
                 </div>
                 <div className="drawer-section">
+                  <div className="drawer-row">
+                    <span className="drawer-row-label">Email</span>
+                    <span className="drawer-row-val">{selected.doctor_email}</span>
+                  </div>
                   <div className="drawer-row">
                     <span className="drawer-row-label">Linked since</span>
                     <span className="drawer-row-val">
