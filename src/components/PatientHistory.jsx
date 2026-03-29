@@ -29,8 +29,108 @@ function SoapView({ soap }) {
   );
 }
 
+// ── CSV helpers ───────────────────────────────────────────────────────────────
+
+/** Wrap a cell value so commas / quotes / newlines don't break the CSV */
+function csvCell(val) {
+  if (val == null) return "";
+  const str = String(val).replace(/\r?\n/g, " ").trim();
+  // Always quote — simplest safe approach
+  return `"${str.replace(/"/g, '""')}"`;
+}
+
+/** Join an array to a readable semicolon-separated string */
+function joinArr(arr) {
+  if (!Array.isArray(arr) || arr.length === 0) return "";
+  return arr.join("; ");
+}
+
+/** Flatten a vitals object to "BP: 120/80; Temp: 98.6°F; …" */
+function flatVitals(vitals) {
+  if (!vitals || typeof vitals !== "object") return "";
+  return Object.entries(vitals)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join("; ");
+}
+
+/**
+ * Build and trigger a CSV download from the session logs.
+ *
+ * Columns (14 attributes):
+ *  1  Session ID
+ *  2  Patient Name
+ *  3  Patient ID
+ *  4  Date
+ *  5  Time
+ *  6  Chief Complaint
+ *  7  Symptoms
+ *  8  Diagnosis
+ *  9  Medications
+ * 10  Lab Orders
+ * 11  Follow-up
+ * 12  Vitals
+ * 13  SOAP – Subjective
+ * 14  SOAP – Objective
+ * 15  SOAP – Assessment
+ * 16  SOAP – Plan
+ */
+function downloadSheet(logs) {
+  const HEADERS = [
+    "Session ID",
+    "Patient Name",
+    "Patient ID",
+    "Date",
+    "Time",
+    "Chief Complaint",
+    "Symptoms",
+    "Diagnosis",
+    "Medications",
+    "Lab Orders",
+    "Follow-up",
+    "Vitals",
+    "SOAP – Subjective",
+    "SOAP – Objective",
+    "SOAP – Assessment",
+    "SOAP – Plan",
+  ];
+
+  const rows = logs.map((log) => {
+    const cd   = log.clinical_data || {};
+    const soap = log.soap_note     || {};
+    const dt   = new Date(log.created_at);
+
+    return [
+      log.id,
+      log.patient_name || "",
+      log.patient_id   || "",
+      dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+      dt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+      cd.chief_complaint || "",
+      joinArr(cd.symptoms),
+      joinArr(cd.diagnosis),
+      joinArr(cd.medications),
+      joinArr(cd.lab_orders),
+      cd.follow_up || "",
+      flatVitals(cd.vitals),
+      soap.subjective || "",
+      soap.objective  || "",
+      soap.assessment || "",
+      soap.plan       || "",
+    ].map(csvCell).join(",");
+  });
+
+  const csvContent = [HEADERS.map(csvCell).join(","), ...rows].join("\r\n");
+  const blob       = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" }); // BOM for Excel
+  const url        = URL.createObjectURL(blob);
+  const a          = document.createElement("a");
+  a.href           = url;
+  a.download       = `patient_history_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
-export default function PatientHistory({ onClose }) {
+export default function PatientHistory({ userId, onClose }) {
   const [logs, setLogs]         = useState([]);
   const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState(null);
@@ -43,6 +143,7 @@ export default function PatientHistory({ onClose }) {
     const { data, error } = await supabase
       .from("session_logs")
       .select("*")
+      .eq("user_id", userId)          // ← only this doctor's sessions
       .order("created_at", { ascending: false });
     if (!error) setLogs(data);
     setLoading(false);
@@ -73,7 +174,37 @@ export default function PatientHistory({ onClose }) {
               {logs.length} session{logs.length !== 1 ? "s" : ""} recorded
             </p>
           </div>
-          <button className="history-close" onClick={onClose}>✕</button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {/* Download Sheet button — only shown when there is data */}
+            {!loading && logs.length > 0 && (
+              <button
+                onClick={() => downloadSheet(logs)}
+                title="Download all sessions as a spreadsheet"
+                style={{
+                  display: "flex", alignItems: "center", gap: "6px",
+                  padding: "7px 14px", borderRadius: "8px", cursor: "pointer",
+                  fontSize: "13px", fontWeight: 600, fontFamily: "var(--font)",
+                  background: "var(--green-light)",
+                  color: "var(--green)",
+                  border: "1px solid rgba(18,184,134,0.35)",
+                  transition: "background 0.15s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(18,184,134,0.2)"}
+                onMouseLeave={e => e.currentTarget.style.background = "var(--green-light)"}
+              >
+                {/* spreadsheet icon */}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <path d="M3 9h18M3 15h18M9 3v18"/>
+                </svg>
+                Download Sheet
+              </button>
+            )}
+
+            <button className="history-close" onClick={onClose}>✕</button>
+          </div>
         </div>
 
         {/* Body */}
