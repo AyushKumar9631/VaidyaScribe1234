@@ -382,6 +382,7 @@ function HospitalTab({ adminId }) {
   );
 }
 
+
 // ── Doctors Tab ──────────────────────────────────────────────────────────────
 function DoctorsTab({ adminId }) {
   const [doctors, setDoctors] = useState([]);

@@ -1793,3 +1793,627 @@ body {
     align-items: flex-start;
   }
 }
+
+/* ============================================================
+   HOSPITAL DETAILS — EXTRA FIELDS
+   Append these rules to the END of global.css
+   ============================================================ */
+
+/* ── Section heading inside form card ── */
+.admin-section-heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Hint text next to labels ── */
+.admin-label-hint {
+  font-weight: 400;
+  color: var(--text3);
+  font-size: 11px;
+}
+
+.admin-label-small {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text2);
+  margin-bottom: 6px;
+}
+
+/* ── Logo Upload ── */
+.logo-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.logo-preview-box {
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  border: 2px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  overflow: hidden;
+  background: var(--surface2);
+  transition: border-color 0.2s;
+  text-align: center;
+  font-size: 22px;
+}
+
+.logo-preview-box:hover {
+  border-color: var(--accent);
+}
+
+.logo-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.logo-placeholder {
+  font-size: 20px;
+  line-height: 1.4;
+  color: var(--text3);
+}
+
+.logo-upload-btn {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text1);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.logo-upload-btn:hover {
+  background: var(--surface3);
+  border-color: var(--accent);
+}
+
+/* ── Ownership Type Radio Cards ── */
+.ownership-radio-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.ownership-radio-card {
+  flex: 1;
+  min-width: 130px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--surface2);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.ownership-radio-card:hover {
+  border-color: var(--accent);
+  background: var(--surface3);
+}
+
+.ownership-radio-card.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.ownership-card-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text1);
+}
+
+.ownership-card-desc {
+  font-size: 11px;
+  color: var(--text3);
+}
+
+/* ── Specialized Beds 3-column grid ── */
+.beds-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .beds-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ownership-radio-group {
+    flex-direction: column;
+  }
+
+  .logo-upload-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ── Doctors Tab — inner two-panel layout ── */
+.doctors-layout {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.doctors-sidebar {
+  width: 196px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 14px;
+  gap: 8px;
+}
+
+.doctors-sidebar-heading {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  padding: 0 12px;
+  margin-bottom: 4px;
+}
+
+.doctors-main {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+/* ── Doctor profile photo preview ── */
+.doctor-photo-preview-box {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  overflow: hidden;
+  background: var(--surface2);
+  transition: border-color 0.2s;
+  text-align: center;
+  font-size: 22px;
+}
+
+.doctor-photo-preview-box:hover {
+  border-color: var(--accent);
+}
+
+@media (max-width: 700px) {
+  .doctors-layout {
+    flex-direction: column;
+  }
+
+  .doctors-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+  }
+
+  .doctors-sidebar-heading {
+    width: 100%;
+    margin-bottom: 6px;
+  }
+
+  .doctors-main {
+    overflow-y: auto;
+  }
+}
+
+/* ============================================================
+   HOSPITAL DETAILS — EXTRA FIELDS
+   Append these rules to the END of global.css
+   ============================================================ */
+
+/* ── Section heading inside form card ── */
+.admin-section-heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Hint text next to labels ── */
+.admin-label-hint {
+  font-weight: 400;
+  color: var(--text3);
+  font-size: 11px;
+}
+
+.admin-label-small {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text2);
+  margin-bottom: 6px;
+}
+
+/* ── Logo Upload ── */
+.logo-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.logo-preview-box {
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  border: 2px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  overflow: hidden;
+  background: var(--surface2);
+  transition: border-color 0.2s;
+  text-align: center;
+  font-size: 22px;
+}
+
+.logo-preview-box:hover {
+  border-color: var(--accent);
+}
+
+.logo-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.logo-placeholder {
+  font-size: 20px;
+  line-height: 1.4;
+  color: var(--text3);
+}
+
+.logo-upload-btn {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text1);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.logo-upload-btn:hover {
+  background: var(--surface3);
+  border-color: var(--accent);
+}
+
+/* ── Ownership Type Radio Cards ── */
+.ownership-radio-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.ownership-radio-card {
+  flex: 1;
+  min-width: 130px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--surface2);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.ownership-radio-card:hover {
+  border-color: var(--accent);
+  background: var(--surface3);
+}
+
+.ownership-radio-card.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.ownership-card-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text1);
+}
+
+.ownership-card-desc {
+  font-size: 11px;
+  color: var(--text3);
+}
+
+/* ── Specialized Beds 3-column grid ── */
+.beds-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .beds-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ownership-radio-group {
+    flex-direction: column;
+  }
+
+  .logo-upload-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ── Doctors Tab — inner two-panel layout ── */
+.doctors-layout {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.doctors-sidebar {
+  width: 196px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 14px;
+  gap: 8px;
+}
+
+.doctors-sidebar-heading {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  padding: 0 12px;
+  margin-bottom: 4px;
+}
+
+.doctors-main {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+/* ── Doctor profile photo preview ── */
+.doctor-photo-preview-box {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  overflow: hidden;
+  background: var(--surface2);
+  transition: border-color 0.2s;
+  text-align: center;
+  font-size: 22px;
+}
+
+.doctor-photo-preview-box:hover {
+  border-color: var(--accent);
+}
+
+@media (max-width: 700px) {
+  .doctors-layout {
+    flex-direction: column;
+  }
+
+  .doctors-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+  }
+
+  .doctors-sidebar-heading {
+    width: 100%;
+    margin-bottom: 6px;
+  }
+
+  .doctors-main {
+    overflow-y: auto;
+  }
+}
+
+/* ── Doctor app wrapper ── */
+.doctor-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Doctor body: sidebar + content ── */
+.doctor-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Doctor left sidebar ── */
+.doctor-sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 14px;
+  gap: 4px;
+}
+
+.doctor-sidebar-footer {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.doctor-sidebar-hospital {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 12px;
+}
+
+/* ── Doctor content scroll area ── */
+.doctor-content {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+/* ── My Information page ── */
+.myinfo-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 24px 48px;
+}
+
+.myinfo-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 28px;
+  padding: 20px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.myinfo-avatar {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--green), #059669);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.myinfo-avatar:hover .myinfo-avatar-overlay {
+  opacity: 1;
+}
+
+.myinfo-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.myinfo-avatar-placeholder {
+  font-size: 32px;
+}
+
+.myinfo-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  border-radius: 50%;
+}
+
+.myinfo-hero-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.myinfo-hero-sub {
+  font-size: 13px;
+  color: var(--text2);
+}
+
+.myinfo-body {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 700px) {
+  .doctor-layout {
+    flex-direction: column;
+  }
+
+  .doctor-sidebar {
+    width: 100%;
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px;
+    overflow-x: auto;
+  }
+
+  .doctor-sidebar-footer {
+    display: none;
+  }
+
+  .doctor-content {
+    overflow-y: auto;
+  }
+
+  .myinfo-hero {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+

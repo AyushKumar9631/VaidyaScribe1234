@@ -230,7 +230,7 @@ export default function LandingPage() {
           <div className="hero-inner">
             <div className="hero-badge">
               <span className="hero-badge-dot" />
-              Now live at IIT Patna Health Center
+              Now live
             </div>
 
             <h1 className="hero-h1">
