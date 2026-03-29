@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import RecordingPanel from "./components/RecordingPanel";
 import TranscriptPanel from "./components/TranscriptPanel";
 import FHIRPanel from "./components/FHIRPanel";
+import SOAPPanel, { deriveSoap } from "./components/SOAPPanel";
 import Header from "./components/Header";
 import LandingPage from "./components/LandingPage";
 import PatientHistory from "./components/PatientHistory";
@@ -16,9 +17,9 @@ import "./styles/global.css";
 export default function App() {
   // ── Auth & role state ──────────────────────────────────────────────────────
   const [user, setUser]             = useState(null);
-  const [role, setRole]             = useState(null);   // 'doctor' | 'admin' | null
+  const [role, setRole]             = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [hospitalName, setHospitalName] = useState(null); // linked hospital name
+  const [hospitalName, setHospitalName] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -39,7 +40,6 @@ export default function App() {
   const loadProfile = async (uid) => {
     const { data } = await supabase.from("profiles").select("role").eq("id", uid).single();
     setRole(data?.role ?? "doctor");
-    // Also check hospital link
     const { data: link } = await supabase
       .from("doctor_hospital_links")
       .select("hospitals(hospital_name)")
@@ -54,6 +54,7 @@ export default function App() {
   const [transcript, setTranscript]     = useState("");
   const [clinicalData, setClinicalData] = useState(null);
   const [fhirBundle, setFhirBundle]     = useState(null);
+  const [soapNote, setSoapNote]         = useState(null);   // { subjective, objective, assessment, plan }
   const [activeTab, setActiveTab]       = useState("transcript");
   const [error, setError]               = useState(null);
   const [processingStep, setProcessingStep] = useState("");
@@ -63,10 +64,17 @@ export default function App() {
   const [sessionSavedAt, setSessionSavedAt] = useState(null);
   const [patientInfo, setPatientInfo]   = useState({ patientId: "", patientName: "", language: { label: "Hindi", code: "hi" } });
 
+  // submission state
+  const [submitting, setSubmitting]     = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError]   = useState(null);
+
   // ── Doctor handlers ────────────────────────────────────────────────────────
   const handleStartRecording = () => {
     setPhase("recording");
-    setTranscript(""); setClinicalData(null); setFhirBundle(null); setError(null);
+    setTranscript(""); setClinicalData(null); setFhirBundle(null);
+    setSoapNote(null); setError(null);
+    setSubmitSuccess(false); setSubmitError(null);
   };
 
   const handleStopRecording = async (audioBlob) => {
@@ -84,17 +92,8 @@ export default function App() {
       const bundle = buildFHIRBundle(entities);
       setFhirBundle(bundle);
 
-      setProcessingStep("Saving session log...");
-      const { error: dbError } = await supabase.from("session_logs").insert({
-        user_id: user.id,
-        patient_id: patientInfo.patientId.trim(),
-        patient_name: patientInfo.patientName.trim(),
-        transcript: text,
-        clinical_data: entities,
-        fhir_bundle: bundle,
-      });
-      if (dbError) console.error("Failed to save log:", dbError.message);
-      else setSessionSavedAt(Date.now());
+      // Auto-derive SOAP note — user can edit before submitting
+      setSoapNote(deriveSoap(entities, text));
 
       setPhase("done");
       setActiveTab("transcript");
@@ -104,10 +103,36 @@ export default function App() {
     }
   };
 
+  // ── Submit handler — saves to DB only on explicit submit ─────────────────
+  const handleSubmit = async () => {
+    if (!transcript) return;
+    setSubmitting(true);
+    setSubmitError(null);
+
+    const { error: dbError } = await supabase.from("session_logs").insert({
+      user_id:       user.id,
+      patient_id:    patientInfo.patientId.trim(),
+      patient_name:  patientInfo.patientName.trim(),
+      transcript,
+      clinical_data: clinicalData,
+      fhir_bundle:   fhirBundle,
+      soap_note:     soapNote,          // NEW column
+    });
+
+    setSubmitting(false);
+    if (dbError) {
+      setSubmitError(dbError.message);
+    } else {
+      setSubmitSuccess(true);
+      setSessionSavedAt(Date.now());
+    }
+  };
+
   const handleReset = () => {
     setPhase("idle");
-    setTranscript(""); setClinicalData(null); setFhirBundle(null);
+    setTranscript(""); setClinicalData(null); setFhirBundle(null); setSoapNote(null);
     setError(null); setProcessingStep(""); setSessionSavedAt(null);
+    setSubmitSuccess(false); setSubmitError(null);
     setPatientInfo({ patientId: "", patientName: "", language: { label: "Hindi", code: "hi" } });
   };
 
@@ -125,13 +150,12 @@ export default function App() {
     );
   }
 
-  // Not logged in — show landing
   if (!user) return <div className="app"><LandingPage /></div>;
-
-  // Admin dashboard
   if (role === "admin") return <div className="app"><AdminDashboard user={user} /></div>;
 
   // ── Doctor app ─────────────────────────────────────────────────────────────
+  const showResults = transcript || phase === "processing";
+
   return (
     <div className="app">
       <Header
@@ -147,10 +171,7 @@ export default function App() {
       {showLinkHospital && (
         <LinkHospital
           user={user}
-          onClose={() => {
-            setShowLinkHospital(false);
-            loadProfile(user.id); // refresh hospital name in header
-          }}
+          onClose={() => { setShowLinkHospital(false); loadProfile(user.id); }}
         />
       )}
 
@@ -165,44 +186,111 @@ export default function App() {
           onPatientChange={setPatientInfo}
         />
 
-        {/* Current session results */}
-        {(transcript || phase === "processing") && (
-          <div className="results">
-            <div className="tabs">
-              {["transcript", "clinical", "fhir"].map((tab) => (
-                <button key={tab}
-                  className={`tab ${activeTab === tab ? "active" : ""}`}
-                  onClick={() => setActiveTab(tab)}
-                >
-                  {tab === "transcript" && "📝 Transcript"}
-                  {tab === "clinical"   && "🩺 Clinical Notes"}
-                  {tab === "fhir"       && "⚕️ FHIR Bundle"}
-                  {tab === "clinical" && clinicalData && <span className="dot" />}
-                  {tab === "fhir"     && fhirBundle   && <span className="dot" />}
-                </button>
-              ))}
+        {/* ── Results tabs ──────────────────────────────────────────── */}
+        {showResults && (
+          <>
+            <div className="results">
+              <div className="tabs">
+                {["transcript", "clinical", "soap", "fhir"].map((tab) => (
+                  <button
+                    key={tab}
+                    className={`tab ${activeTab === tab ? "active" : ""}`}
+                    onClick={() => setActiveTab(tab)}
+                  >
+                    {tab === "transcript" && "📝 Transcript"}
+                    {tab === "clinical"   && "🩺 Clinical Notes"}
+                    {tab === "soap"       && "📋 SOAP Note"}
+                    {tab === "fhir"       && "⚕️ FHIR Bundle"}
+                    {tab === "clinical" && clinicalData && <span className="dot" />}
+                    {tab === "soap"     && soapNote     && <span className="dot" />}
+                    {tab === "fhir"     && fhirBundle   && <span className="dot" />}
+                  </button>
+                ))}
+              </div>
+
+              <div className="tab-content">
+                {activeTab === "transcript" && (
+                  <TranscriptPanel
+                    transcript={transcript}
+                    loading={phase === "processing" && !transcript}
+                    apiKey={apiKey}
+                    languageCode={patientInfo.language?.code}
+                  />
+                )}
+
+                {activeTab === "clinical" && (
+                  <div className="clinical-panel">
+                    {clinicalData ? (
+                      <ClinicalView data={clinicalData} />
+                    ) : (
+                      <div className="loading-state">
+                        <div className="pulse-ring" />
+                        <p>Extracting clinical entities...</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === "soap" && (
+                  <SOAPPanel
+                    clinicalData={clinicalData}
+                    transcript={transcript}
+                    soap={soapNote}
+                    onChange={setSoapNote}
+                  />
+                )}
+
+                {activeTab === "fhir" && (
+                  <FHIRPanel bundle={fhirBundle} loading={!fhirBundle && phase === "processing"} />
+                )}
+              </div>
             </div>
-            <div className="tab-content">
-              {activeTab === "transcript" && (
-                <TranscriptPanel transcript={transcript}
-                  loading={phase === "processing" && !transcript}
-                  apiKey={apiKey} languageCode={patientInfo.language?.code} />
-              )}
-              {activeTab === "clinical" && (
-                <div className="clinical-panel">
-                  {clinicalData ? <ClinicalView data={clinicalData} /> : (
-                    <div className="loading-state">
-                      <div className="pulse-ring" />
-                      <p>Extracting clinical entities...</p>
+
+            {/* ── Submit bar ──────────────────────────────────────────── */}
+            {phase === "done" && (
+              <div className="submit-bar">
+                {submitSuccess ? (
+                  <div className="submit-success">
+                    <span className="submit-success-icon">✓</span>
+                    Session saved to records
+                    <button className="reset-btn" style={{ marginLeft: "auto" }} onClick={handleReset}>
+                      New session
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {submitError && (
+                      <div className="error-box" style={{ marginBottom: 12 }}>
+                        Failed to save: {submitError}
+                      </div>
+                    )}
+                    <div className="submit-bar-inner">
+                      <div className="submit-info">
+                        <span className="submit-info-label">Ready to submit</span>
+                        <span className="submit-info-sub">
+                          Review all tabs before saving. SOAP note is editable.
+                        </span>
+                      </div>
+                      <button
+                        className="submit-btn"
+                        onClick={handleSubmit}
+                        disabled={submitting}
+                      >
+                        {submitting ? (
+                          <>
+                            <span className="submit-spinner" />
+                            Saving...
+                          </>
+                        ) : (
+                          "Save Record →"
+                        )}
+                      </button>
                     </div>
-                  )}
-                </div>
-              )}
-              {activeTab === "fhir" && (
-                <FHIRPanel bundle={fhirBundle} loading={!fhirBundle && phase === "processing"} />
-              )}
-            </div>
-          </div>
+                  </>
+                )}
+              </div>
+            )}
+          </>
         )}
 
         {/* Per-patient history */}
