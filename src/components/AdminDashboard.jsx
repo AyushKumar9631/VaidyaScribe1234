@@ -392,8 +392,10 @@ function HospitalTab({ adminId }) {
 
 // ── Doctors Tab ──────────────────────────────────────────────────────────────
 function DoctorsTab({ adminId }) {
-  const [doctors, setDoctors] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [doctors, setDoctors]       = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [selected, setSelected]     = useState(null);   // doc with profile attached
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => { fetchDoctors(); }, []);
 
@@ -422,18 +424,34 @@ function DoctorsTab({ adminId }) {
           .select("id, patient_id, created_at")
           .eq("user_id", link.doctor_id);
 
+        const { data: profile } = await supabase
+          .from("doctor_profiles")
+          .select("*")
+          .eq("user_id", link.doctor_id)
+          .single();
+
         const uniquePatients = new Set((sessions || []).map(s => s.patient_id)).size;
         const totalSessions  = (sessions || []).length;
         const lastActive     = sessions?.length
           ? new Date(Math.max(...sessions.map(s => new Date(s.created_at)))).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
           : "Never";
 
-        return { ...link, totalSessions, uniquePatients, lastActive };
+        return { ...link, totalSessions, uniquePatients, lastActive, profile: profile || null };
       })
     );
 
     setDoctors(enriched);
     setLoading(false);
+  };
+
+  const openDrawer = (doc) => {
+    setSelected(doc);
+    setDrawerOpen(true);
+  };
+
+  const closeDrawer = () => {
+    setDrawerOpen(false);
+    setTimeout(() => setSelected(null), 300);
   };
 
   if (loading) return <div className="admin-loading"><div className="pulse-ring" /><p>Loading doctors...</p></div>;
@@ -452,13 +470,28 @@ function DoctorsTab({ adminId }) {
 
       <div className="doctor-cards-grid">
         {doctors.map((doc) => (
-          <div key={doc.id} className="doctor-card">
+          <div
+            key={doc.id}
+            className="doctor-card doctor-card-clickable"
+            onClick={() => openDrawer(doc)}
+            title="Click to view full profile"
+          >
             <div className="doctor-card-avatar">
-              {doc.doctor_email?.[0]?.toUpperCase() || "D"}
+              {doc.profile?.photo_url
+                ? <img src={doc.profile.photo_url} alt="" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+                : (doc.profile?.full_name?.[0]?.toUpperCase() || doc.doctor_email?.[0]?.toUpperCase() || "D")
+              }
             </div>
             <div className="doctor-card-info">
-              <p className="doctor-card-email">{doc.doctor_email}</p>
-              <p className="doctor-card-linked">Linked {new Date(doc.linked_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</p>
+              <p className="doctor-card-email">
+                {doc.profile?.full_name || doc.doctor_email}
+              </p>
+              <p className="doctor-card-linked">
+                {doc.profile?.specialization
+                  ? <span style={{ color: "var(--green)", fontSize: "11px" }}>{doc.profile.specialization}</span>
+                  : <span>Linked {new Date(doc.linked_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                }
+              </p>
             </div>
             <div className="doctor-card-stats">
               <div className="doctor-stat">
@@ -474,9 +507,127 @@ function DoctorsTab({ adminId }) {
                 <span className="doctor-stat-label">Last Active</span>
               </div>
             </div>
+            <div className="doctor-card-hint">View profile →</div>
           </div>
         ))}
       </div>
+
+      {/* ── Doctor Profile Drawer ── */}
+      {drawerOpen && selected && (
+        <div className="drawer-overlay" onClick={closeDrawer}>
+          <div
+            className={`doctor-drawer ${drawerOpen ? "drawer-open" : ""}`}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Drawer header */}
+            <div className="drawer-header">
+              <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)" }}>Doctor Profile</span>
+              <button className="drawer-close" onClick={closeDrawer}>✕</button>
+            </div>
+
+            {/* Hero */}
+            <div className="drawer-hero">
+              <div className="drawer-avatar">
+                {selected.profile?.photo_url
+                  ? <img src={selected.profile.photo_url} alt="" className="drawer-avatar-img" />
+                  : <span className="drawer-avatar-placeholder">
+                      {selected.profile?.full_name?.[0]?.toUpperCase() || selected.doctor_email?.[0]?.toUpperCase() || "D"}
+                    </span>
+                }
+              </div>
+              <div className="drawer-hero-info">
+                <h3 className="drawer-hero-name">
+                  {selected.profile?.full_name || "—"}
+                </h3>
+                <p className="drawer-hero-spec">
+                  {selected.profile?.specialization || "Specialization not set"}
+                </p>
+                <p className="drawer-hero-email">{selected.doctor_email}</p>
+              </div>
+            </div>
+
+            {/* Stats strip */}
+            <div className="drawer-stats">
+              <div className="drawer-stat">
+                <span className="drawer-stat-val">{selected.totalSessions}</span>
+                <span className="drawer-stat-label">Sessions</span>
+              </div>
+              <div className="drawer-stat">
+                <span className="drawer-stat-val">{selected.uniquePatients}</span>
+                <span className="drawer-stat-label">Patients</span>
+              </div>
+              <div className="drawer-stat">
+                <span className="drawer-stat-val">{selected.lastActive}</span>
+                <span className="drawer-stat-label">Last Active</span>
+              </div>
+            </div>
+
+            {selected.profile ? (
+              <div className="drawer-body">
+
+                {/* Identity */}
+                <div className="drawer-section">
+                  <p className="drawer-section-title">Identity</p>
+                  <div className="drawer-row">
+                    <span className="drawer-row-label">Registration ID</span>
+                    <span className="drawer-row-val mono">{selected.profile.registration_id || "—"}</span>
+                  </div>
+                  <div className="drawer-row">
+                    <span className="drawer-row-label">Qualification</span>
+                    <span className="drawer-row-val">{selected.profile.qualification || "—"}</span>
+                  </div>
+                  <div className="drawer-row">
+                    <span className="drawer-row-label">Experience</span>
+                    <span className="drawer-row-val">
+                      {selected.profile.experience_years != null
+                        ? `${selected.profile.experience_years} year${selected.profile.experience_years !== 1 ? "s" : ""}`
+                        : "—"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Contact */}
+                <div className="drawer-section">
+                  <p className="drawer-section-title">Contact</p>
+                  <div className="drawer-row">
+                    <span className="drawer-row-label">Phone</span>
+                    <span className="drawer-row-val">{selected.profile.phone || "—"}</span>
+                  </div>
+                  <div className="drawer-row">
+                    <span className="drawer-row-label">Linked since</span>
+                    <span className="drawer-row-val">
+                      {new Date(selected.linked_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bio */}
+                {selected.profile.bio && (
+                  <div className="drawer-section">
+                    <p className="drawer-section-title">Bio</p>
+                    <p className="drawer-bio">{selected.profile.bio}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="drawer-body">
+                <div className="admin-empty" style={{ padding: "32px 0" }}>
+                  <p style={{ fontSize: "28px" }}>📋</p>
+                  <p>This doctor hasn't filled in their profile yet.</p>
+                </div>
+                <div className="drawer-section">
+                  <div className="drawer-row">
+                    <span className="drawer-row-label">Linked since</span>
+                    <span className="drawer-row-val">
+                      {new Date(selected.linked_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
