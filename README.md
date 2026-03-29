@@ -119,7 +119,7 @@ Doctor speaks → Whisper transcribes → Qwen3-32B extracts → FHIR R4 bundle 
 ```
 📷  [ Insert screenshot: Landing Page — hero section with animated words ]
 ```
-> **Path:** `docs/screenshots/landing-page.png`
+> **Path:** `docs/screenshots/landingpage.jpeg`
 
 The hero section cycles through: **Examining → Transcribing → Prescribing → Diagnosing** and the "Built for" line typewriter-animates through: **Doctors → Hospitals → Clinics → Specialists**.
 
