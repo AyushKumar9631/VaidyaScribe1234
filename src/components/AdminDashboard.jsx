@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { ThemeToggleBtn } from "../context/ThemeContext";
 import { supabase } from "../services/supabase";
 
 export default function AdminDashboard({ user }) {
@@ -38,6 +39,9 @@ export default function AdminDashboard({ user }) {
         </nav>
 
         <div className="admin-sidebar-footer">
+          <div style={{ marginBottom: "10px" }}>
+            <ThemeToggleBtn style={{ width: "100%", justifyContent: "center" }} />
+          </div>
           <p style={{ fontSize: "11px", color: "var(--text3)", marginBottom: "6px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {user.email}
           </p>
