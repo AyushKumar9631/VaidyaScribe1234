@@ -187,7 +187,7 @@ export default function App() {
       />
 
       {/* Overlay modals */}
-      {showHistory && <PatientHistory onClose={() => setShowHistory(false)} />}
+      {showHistory && <PatientHistory userId={user.id} onClose={() => setShowHistory(false)} />}
       {showLinkHospital && (
         <LinkHospital
           user={user}
