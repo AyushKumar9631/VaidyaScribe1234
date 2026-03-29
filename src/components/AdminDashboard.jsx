@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../services/supabase";
 
 export default function AdminDashboard({ user }) {
@@ -55,14 +55,29 @@ export default function AdminDashboard({ user }) {
 
 // ── Hospital Details Tab ─────────────────────────────────────────────────────
 function HospitalTab({ adminId }) {
-  const [hospital, setHospital]     = useState(null);
-  const [loading, setLoading]       = useState(true);
-  const [saving, setSaving]         = useState(false);
-  const [name, setName]             = useState("");
-  const [code, setCode]             = useState("");
-  const [pass, setPass]             = useState("");
-  const [msg, setMsg]               = useState(null);
-  const [error, setError]           = useState(null);
+  const [hospital, setHospital]         = useState(null);
+  const [loading, setLoading]           = useState(true);
+  const [saving, setSaving]             = useState(false);
+  const [msg, setMsg]                   = useState(null);
+  const [error, setError]               = useState(null);
+
+  // Basic fields
+  const [name, setName]                 = useState("");
+  const [code, setCode]                 = useState("");
+  const [pass, setPass]                 = useState("");
+
+  // Extra fields
+  const [logoFile, setLogoFile]         = useState(null);
+  const [logoPreview, setLogoPreview]   = useState(null);
+  const [logoUrl, setLogoUrl]           = useState("");
+  const [ccn, setCcn]                   = useState("");
+  const [ownershipType, setOwnershipType] = useState("");
+  const [licensedBeds, setLicensedBeds] = useState("");
+  const [icuBeds, setIcuBeds]           = useState("");
+  const [nicuBeds, setNicuBeds]         = useState("");
+  const [burnBeds, setBurnBeds]         = useState("");
+
+  const logoInputRef = useRef(null);
 
   useEffect(() => { fetchHospital(); }, []);
 
@@ -75,31 +90,77 @@ function HospitalTab({ adminId }) {
       .single();
     if (data) {
       setHospital(data);
-      setName(data.hospital_name);
-      setCode(data.hospital_code);
-      setPass(data.hospital_pass);
+      setName(data.hospital_name || "");
+      setCode(data.hospital_code || "");
+      setPass(data.hospital_pass || "");
+      setCcn(data.ccn || "");
+      setOwnershipType(data.ownership_type || "");
+      setLicensedBeds(data.licensed_beds ?? "");
+      setIcuBeds(data.icu_beds ?? "");
+      setNicuBeds(data.nicu_beds ?? "");
+      setBurnBeds(data.burn_beds ?? "");
+      setLogoUrl(data.logo_url || "");
+      if (data.logo_url) setLogoPreview(data.logo_url);
     }
     setLoading(false);
   };
 
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+  };
+
+  const uploadLogo = async () => {
+    if (!logoFile) return logoUrl;
+    const ext = logoFile.name.split(".").pop();
+    const path = `hospital-logos/${adminId}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("assets")
+      .upload(path, logoFile, { upsert: true, contentType: logoFile.type });
+    if (upErr) { setError("Logo upload failed: " + upErr.message); return null; }
+    const { data: urlData } = supabase.storage.from("assets").getPublicUrl(path);
+    return urlData.publicUrl;
+  };
+
   const save = async () => {
     setSaving(true); setMsg(null); setError(null);
-    if (!name || !code || !pass) { setError("All fields are required"); setSaving(false); return; }
+    if (!name || !code || !pass) { setError("Hospital Name, Code and Password are required"); setSaving(false); return; }
+
+    let finalLogoUrl = logoUrl;
+    if (logoFile) {
+      const uploaded = await uploadLogo();
+      if (!uploaded) { setSaving(false); return; }
+      finalLogoUrl = uploaded;
+      setLogoUrl(uploaded);
+    }
+
+    const payload = {
+      hospital_name:  name,
+      hospital_code:  code,
+      hospital_pass:  pass,
+      ccn:            ccn || null,
+      ownership_type: ownershipType || null,
+      licensed_beds:  licensedBeds !== "" ? parseInt(licensedBeds, 10) : null,
+      icu_beds:       icuBeds  !== "" ? parseInt(icuBeds, 10)  : null,
+      nicu_beds:      nicuBeds !== "" ? parseInt(nicuBeds, 10) : null,
+      burn_beds:      burnBeds !== "" ? parseInt(burnBeds, 10) : null,
+      logo_url:       finalLogoUrl || null,
+    };
 
     if (hospital) {
-      // Update
-      const { error } = await supabase
+      const { error: e } = await supabase
         .from("hospitals")
-        .update({ hospital_name: name, hospital_code: code, hospital_pass: pass })
+        .update(payload)
         .eq("id", hospital.id);
-      if (error) setError(error.message);
+      if (e) setError(e.message);
       else { setMsg("Hospital details updated!"); fetchHospital(); }
     } else {
-      // Insert
-      const { error } = await supabase
+      const { error: e } = await supabase
         .from("hospitals")
-        .insert({ admin_id: adminId, hospital_name: name, hospital_code: code, hospital_pass: pass });
-      if (error) setError(error.message);
+        .insert({ admin_id: adminId, ...payload });
+      if (e) setError(e.message);
       else { setMsg("Hospital registered successfully!"); fetchHospital(); }
     }
     setSaving(false);
@@ -114,13 +175,57 @@ function HospitalTab({ adminId }) {
         Set your hospital information. Doctors will use the <strong>Hospital Code</strong> and <strong>Hospital Password</strong> to link their account to your hospital.
       </p>
 
+      {/* ── Section 1: Basic Info ── */}
       <div className="admin-form-card">
+        <p className="admin-section-heading">Basic Information</p>
+
         {hospital && (
           <div className="admin-info-row">
             <span className="admin-info-label">Hospital ID</span>
             <span className="admin-info-val mono">{hospital.id}</span>
           </div>
         )}
+
+        {/* Logo Upload */}
+        <div className="admin-field">
+          <label className="admin-label">Hospital Logo</label>
+          <div className="logo-upload-row">
+            <div
+              className="logo-preview-box"
+              onClick={() => logoInputRef.current?.click()}
+              title="Click to upload logo"
+            >
+              {logoPreview
+                ? <img src={logoPreview} alt="Hospital logo" className="logo-preview-img" />
+                : <span className="logo-placeholder">🏥<br /><span style={{ fontSize: "11px", color: "var(--text3)" }}>Click to upload</span></span>
+              }
+            </div>
+            <div style={{ flex: 1 }}>
+              <button
+                type="button"
+                className="logo-upload-btn"
+                onClick={() => logoInputRef.current?.click()}
+              >
+                {logoPreview ? "Change Logo" : "Upload Logo"}
+              </button>
+              <p style={{ fontSize: "11px", color: "var(--text3)", marginTop: "6px" }}>
+                PNG, JPG or SVG · Recommended 256 × 256 px
+              </p>
+              {logoFile && (
+                <p style={{ fontSize: "11px", color: "var(--accent)", marginTop: "4px" }}>
+                  ✓ {logoFile.name}
+                </p>
+              )}
+            </div>
+          </div>
+          <input
+            ref={logoInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/svg+xml,image/webp"
+            style={{ display: "none" }}
+            onChange={handleLogoChange}
+          />
+        </div>
 
         <div className="admin-field">
           <label className="admin-label">Hospital Name</label>
@@ -143,18 +248,125 @@ function HospitalTab({ adminId }) {
           <input className="key-input" type="password" value={pass}
             onChange={e => setPass(e.target.value)} placeholder="Set a secure password" />
         </div>
-
-        {error && <p style={{ color: "var(--red)", fontSize: "13px" }}>{error}</p>}
-        {msg   && <p style={{ color: "var(--green)", fontSize: "13px" }}>{msg}</p>}
-
-        <button className="key-btn" onClick={save} disabled={saving} style={{ marginTop: "6px" }}>
-          {saving ? "Saving..." : hospital ? "Update Details" : "Register Hospital"}
-        </button>
       </div>
+
+      {/* ── Section 2: Regulatory & Ownership ── */}
+      <div className="admin-form-card" style={{ marginTop: "16px" }}>
+        <p className="admin-section-heading">Regulatory &amp; Ownership</p>
+
+        <div className="admin-field">
+          <label className="admin-label">
+            CMS Certification Number (CCN)
+            <span className="admin-label-hint"> · 6-digit Medicare/Medicaid provider ID</span>
+          </label>
+          <input
+            className="key-input"
+            value={ccn}
+            onChange={e => setCcn(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="e.g. 110001"
+            maxLength={6}
+          />
+        </div>
+
+        <div className="admin-field">
+          <label className="admin-label">Ownership Type</label>
+          <div className="ownership-radio-group">
+            {[
+              { value: "public",              label: "🏛️ Public",              desc: "Government / State-run" },
+              { value: "private_nonprofit",   label: "🤝 Private Non-profit",  desc: "NGO / Trust / Charity" },
+              { value: "private_forprofit",   label: "💼 Private For-profit",  desc: "Corporate / Private Ltd." },
+            ].map(opt => (
+              <label
+                key={opt.value}
+                className={`ownership-radio-card ${ownershipType === opt.value ? "selected" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="ownershipType"
+                  value={opt.value}
+                  checked={ownershipType === opt.value}
+                  onChange={() => setOwnershipType(opt.value)}
+                  style={{ display: "none" }}
+                />
+                <span className="ownership-card-label">{opt.label}</span>
+                <span className="ownership-card-desc">{opt.desc}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Section 3: Bed Capacity ── */}
+      <div className="admin-form-card" style={{ marginTop: "16px" }}>
+        <p className="admin-section-heading">Bed Capacity</p>
+
+        <div className="admin-field">
+          <label className="admin-label">
+            Licensed Inpatient Beds
+            <span className="admin-label-hint"> · Total beds the hospital is legally permitted to operate</span>
+          </label>
+          <input
+            className="key-input"
+            type="number"
+            min="0"
+            value={licensedBeds}
+            onChange={e => setLicensedBeds(e.target.value)}
+            placeholder="e.g. 500"
+          />
+        </div>
+
+        <p className="admin-label" style={{ marginBottom: "10px" }}>
+          Specialized Care Beds
+          <span className="admin-label-hint"> · Leave blank if not applicable</span>
+        </p>
+        <div className="beds-grid">
+          <div className="admin-field">
+            <label className="admin-label-small">🏥 ICU Beds</label>
+            <input
+              className="key-input"
+              type="number"
+              min="0"
+              value={icuBeds}
+              onChange={e => setIcuBeds(e.target.value)}
+              placeholder="e.g. 30"
+            />
+          </div>
+          <div className="admin-field">
+            <label className="admin-label-small">🍼 NICU Beds (Neonatal)</label>
+            <input
+              className="key-input"
+              type="number"
+              min="0"
+              value={nicuBeds}
+              onChange={e => setNicuBeds(e.target.value)}
+              placeholder="e.g. 12"
+            />
+          </div>
+          <div className="admin-field">
+            <label className="admin-label-small">🔥 Burn Unit Beds</label>
+            <input
+              className="key-input"
+              type="number"
+              min="0"
+              value={burnBeds}
+              onChange={e => setBurnBeds(e.target.value)}
+              placeholder="e.g. 8"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Messages & Save */}
+      {error && <p style={{ color: "var(--red)",   fontSize: "13px", marginTop: "12px" }}>{error}</p>}
+      {msg   && <p style={{ color: "var(--green)", fontSize: "13px", marginTop: "12px" }}>{msg}</p>}
+
+      <button className="key-btn" onClick={save} disabled={saving} style={{ marginTop: "16px" }}>
+        {saving ? "Saving…" : hospital ? "Update Details" : "Register Hospital"}
+      </button>
 
       {/* Credentials summary card for sharing with doctors */}
       {hospital && (
-        <div className="admin-creds-card">
+        <div className="admin-creds-card" style={{ marginTop: "24px" }}>
           <p className="admin-creds-title">📋 Share with your doctors</p>
           <div className="admin-creds-row">
             <span>Hospital Code</span>
@@ -179,7 +391,6 @@ function DoctorsTab({ adminId }) {
 
   const fetchDoctors = async () => {
     setLoading(true);
-    // Get hospital for this admin first
     const { data: hospital } = await supabase
       .from("hospitals")
       .select("id")
@@ -188,7 +399,6 @@ function DoctorsTab({ adminId }) {
 
     if (!hospital) { setLoading(false); return; }
 
-    // Get all linked doctors
     const { data: links } = await supabase
       .from("doctor_hospital_links")
       .select("*")
@@ -197,7 +407,6 @@ function DoctorsTab({ adminId }) {
 
     if (!links) { setLoading(false); return; }
 
-    // For each doctor, get their session stats
     const enriched = await Promise.all(
       links.map(async (link) => {
         const { data: sessions } = await supabase
@@ -229,7 +438,7 @@ function DoctorsTab({ adminId }) {
       {doctors.length === 0 && (
         <div className="admin-empty">
           <p style={{ fontSize: "32px" }}>👨‍⚕️</p>
-          <p>No doctors linked yet. Share your Hospital Code & Password with doctors so they can link their accounts.</p>
+          <p>No doctors linked yet. Share your Hospital Code &amp; Password with doctors so they can link their accounts.</p>
         </div>
       )}
 
