@@ -14,7 +14,7 @@
 
 <br/>
 
-[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Visit_App-0ea47a?style=for-the-badge)](<!-- FILL: your-deployed-url.com -->)
+[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-vaidyascribe.vercel.app-0ea47a?style=for-the-badge)](https://vaidyascribe.vercel.app/)
 [![IIT Patna](https://img.shields.io/badge/Built_at-IIT_Patna-f59e0b?style=for-the-badge)](https://www.iitp.ac.in)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
@@ -31,10 +31,48 @@
 
 ---
 
+## 🌐 Live Deployment
+
+<div align="center">
+
+### **Access the deployed application here:**
+
+### **[https://vaidyascribe.vercel.app/](https://vaidyascribe.vercel.app/)**
+
+</div>
+
+## 🔐 Demo Credentials
+
+Use the following accounts to explore the full app instantly — no sign-up required:
+
+<div align="center">
+
+| Role | Email | Password | What you can do |
+|:----:|:------|:---------|:----------------|
+| 👨‍⚕️ **Doctor** | `doctor1@gmail.com` | `doctor1` | Record sessions, view SOAP notes, browse patient history |
+| 🏥 **Hospital Admin** | `admin@gmail.com` | `admin123` | Manage hospital details, view linked doctors |
+
+</div>
+
+> ⚠️ **Note:** These are shared demo accounts provided for review purposes. Please do not change passwords or delete existing records so other reviewers can also explore the app.
+
+```
+╔══════════════════════════════════════════════════════════════════════╗
+║                                                                      ║
+║   A doctor finishes explaining a diagnosis.                         ║
+║   Before the patient stands up, the record already exists.          ║
+║                                                                      ║
+║   Transcript. Clinical notes. SOAP note. FHIR R4 bundle.            ║
+║   Four structured outputs. One voice. Under five seconds.           ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝
+```
+
+---
+
 ## 📖 Table of Contents
 
 - [What is VaidyaScribe?](#-what-is-vaidyascribe)
-- [Live Demo](#-live-demo)
 - [Screenshots — Site Walkthrough](#-screenshots--site-walkthrough)
 - [Key Features](#-key-features)
 - [System Architecture](#-system-architecture)
@@ -67,22 +105,6 @@ Doctor speaks → Whisper transcribes → Qwen3-32B extracts → FHIR R4 bundle 
 ```
 
 > **Nothing is saved automatically.** The doctor reviews all four outputs (Transcript · Clinical Notes · SOAP · FHIR) and explicitly hits **Save Record** — only then is the data committed to the database.
-
----
-
-## 🚀 Live Demo
-
-| Environment | URL |
-|-------------|-----|
-| 🟢 Production | [<!-- FILL: your-deployed-url.com -->](#) |
-| 🔵 Staging | [<!-- FILL: staging-url.com -->](#) |
-
-**Demo credentials** (read-only sandbox):
-```
-Doctor login  — demo-doctor@vaidyascribe.dev  /  demo1234
-Admin login   — demo-admin@vaidyascribe.dev   /  demo1234
-```
-> Demo accounts have limited session retention. Data auto-clears every 24 hours.
 
 ---
 
