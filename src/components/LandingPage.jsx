@@ -101,26 +101,126 @@ const CUSTOMERS = [
   { name: "NIT Patna",      logo: "https://www.nitp.ac.in/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Flogo.00e5159e.png&w=128&q=75",                                           fallback: "NIT", color: "#ef4444" },
 ];
 
-function CustomerLogo({ customer }) {
+function CustomerLogoCard({ customer, position, onClick }) {
   const [errored, setErrored] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  // position: "center" | "left" | "right" | "hidden"
+  const isCenter = position === "center";
+
   return (
-    <div className="customer-logo-wrap" title={customer.name}>
-      {!errored ? (
-        <img
-          src={customer.logo}
-          alt={customer.name}
-          className="customer-logo-img"
-          onError={() => setErrored(true)}
+    <div
+      className={`customer-card customer-card--${position}`}
+      title={customer.name}
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={hovered && !isCenter ? { "--card-glow": customer.color + "55" } : {}}
+    >
+      <div
+        className="customer-card-inner"
+        style={isCenter ? { borderColor: customer.color + "66", boxShadow: `0 0 28px ${customer.color}33` } : {}}
+      >
+        {/* Glow ring on hover */}
+        {hovered && (
+          <div
+            className="customer-card-glow"
+            style={{ background: `radial-gradient(circle, ${customer.color}22 0%, transparent 70%)` }}
+          />
+        )}
+
+        {!errored ? (
+          <img
+            src={customer.logo}
+            alt={customer.name}
+            className="customer-card-img"
+            onError={() => setErrored(true)}
+          />
+        ) : (
+          <div
+            className="customer-card-fallback"
+            style={{ color: customer.color, background: customer.color + "18" }}
+          >
+            {customer.fallback}
+          </div>
+        )}
+      </div>
+
+      <span
+        className="customer-card-name"
+        style={isCenter ? { color: customer.color, fontWeight: 600 } : {}}
+      >
+        {customer.name}
+      </span>
+
+      {/* Active dot indicator */}
+      {isCenter && (
+        <span
+          className="customer-card-dot"
+          style={{ background: customer.color }}
         />
-      ) : (
-        <div
-          className="customer-logo-fallback"
-          style={{ background: customer.color + "22", color: customer.color, border: `1px solid ${customer.color}33` }}
-        >
-          {customer.fallback}
-        </div>
       )}
-      <span className="customer-name">{customer.name}</span>
+    </div>
+  );
+}
+
+function CustomerCarousel() {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [dir, setDir] = useState(1); // 1 = forward, -1 = backward
+  const total = CUSTOMERS.length;
+
+  useEffect(() => {
+    if (paused) return;
+    const t = setInterval(() => {
+      setDir(1);
+      setActiveIdx(i => (i + 1) % total);
+    }, 2800);
+    return () => clearInterval(t);
+  }, [paused, total]);
+
+  const getPosition = (idx) => {
+    const offset = (idx - activeIdx + total) % total;
+    if (offset === 0) return "center";
+    if (offset === 1) return "right";
+    if (offset === total - 1) return "left";
+    return "hidden";
+  };
+
+  const goTo = (idx) => {
+    setDir(idx > activeIdx ? 1 : -1);
+    setActiveIdx(idx);
+  };
+
+  return (
+    <div
+      className="customer-carousel"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      <div className="customer-carousel-track">
+        {CUSTOMERS.map((c, i) => (
+          <CustomerLogoCard
+            key={c.name}
+            customer={c}
+            position={getPosition(i)}
+            onClick={() => goTo(i)}
+          />
+        ))}
+      </div>
+
+      {/* Dot navigation */}
+      <div className="customer-carousel-dots">
+        {CUSTOMERS.map((c, i) => (
+          <button
+            key={i}
+            className={`carousel-dot ${i === activeIdx ? "carousel-dot--active" : ""}`}
+            onClick={() => goTo(i)}
+            style={i === activeIdx ? { background: c.color } : {}}
+            aria-label={c.name}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -261,9 +361,7 @@ export default function LandingPage() {
         {/* ── CUSTOMERS ─────────────────────────────────────────────────── */}
         <section className="customers-section" id="integrations">
           <p className="customers-label">Trusted by leading healthcare institutions</p>
-          <div className="customers-row">
-            {CUSTOMERS.map(c => <CustomerLogo key={c.name} customer={c} />)}
-          </div>
+          <CustomerCarousel />
         </section>
 
         {/* ── FEATURES ──────────────────────────────────────────────────── */}
