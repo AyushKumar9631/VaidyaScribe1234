@@ -70,7 +70,7 @@ Remove any keys with empty arrays or null values. Translate all terms to English
     },
     body: JSON.stringify({
       model: "openai/gpt-oss-20b",
-      reasoning_effort: "default",
+      reasoning_effort: "medium",
       reasoning_format: "hidden",
       messages: [
         { role: "system", content: systemPrompt },
