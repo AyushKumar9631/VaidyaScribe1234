@@ -69,7 +69,7 @@ Remove any keys with empty arrays or null values. Translate all terms to English
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "qwen/qwen3.6-27b",
+      model: "openai/gpt-oss-20b",
       reasoning_effort: "default",
       reasoning_format: "hidden",
       messages: [
@@ -83,7 +83,7 @@ Remove any keys with empty arrays or null values. Translate all terms to English
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(`Qwen3.6 API error: ${err.error?.message || response.statusText}`);
+    throw new Error(`Groq API error: ${err.error?.message || response.statusText}`);
   }
 
   const data = await response.json();
