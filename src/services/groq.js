@@ -31,7 +31,7 @@ export async function transcribeAudio(audioBlob, apiKey, languageCode = "hi") {
 }
 
 /**
- * Extract clinical entities from transcript using Groq Qwen3-32B
+ * Extract clinical entities from transcript using Groq Qwen3.6-27B
  * @param {string} transcript
  * @param {string} apiKey
  * @param {string} languageLabel - Human-readable language name e.g. "Hindi", "French"
@@ -69,7 +69,9 @@ Remove any keys with empty arrays or null values. Translate all terms to English
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "qwen/qwen3-32b",
+      model: "qwen/qwen3.6-27b",
+      reasoning_effort: "default",
+      reasoning_format: "hidden",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Extract clinical entities from this transcript:\n\n${transcript}` },
@@ -81,14 +83,14 @@ Remove any keys with empty arrays or null values. Translate all terms to English
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(`Qwen3 API error: ${err.error?.message || response.statusText}`);
+    throw new Error(`Qwen3.6 API error: ${err.error?.message || response.statusText}`);
   }
 
   const data = await response.json();
   const content = data.choices[0]?.message?.content || "{}";
 
   try {
-    // Strip <think>...</think> blocks that Qwen3 may emit, then strip markdown fences
+    // Defensive: strip any stray <think>...</think> blocks, then strip markdown fences
     const noThink = content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
     const clean = noThink.replace(/```json\n?|```\n?/g, "").trim();
     return JSON.parse(clean);

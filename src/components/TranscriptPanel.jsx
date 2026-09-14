@@ -21,7 +21,9 @@ export default function TranscriptPanel({ transcript, loading, apiKey, languageC
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "qwen/qwen3-32b",
+          model: "qwen/qwen3.6-27b",
+          reasoning_effort: "none",
+          reasoning_format: "hidden",
           messages: [
             {
               role: "system",
@@ -42,7 +44,7 @@ export default function TranscriptPanel({ transcript, loading, apiKey, languageC
 
       const data = await response.json();
       let text = data.choices[0]?.message?.content || "";
-      // Strip any <think> blocks Qwen3 might emit
+      // Defensive: strip any stray <think> blocks
       text = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
       setTranslated(text);
     } catch (err) {
